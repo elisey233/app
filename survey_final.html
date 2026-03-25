@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Опрос КПЭ — СТИЛ ТЕХНОЛОДЖИ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f4f4f1;color:#1a1a18;min-height:100vh}
+.shell{max-width:720px;margin:0 auto;padding:1rem 1rem 3rem}
+.tabs{display:flex;border-bottom:1px solid #d3d1c7;margin-bottom:1.5rem}
+.tab{padding:10px 20px;cursor:pointer;font-size:14px;color:#888780;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;border:none;border-bottom:2px solid transparent}
+.tab.active{color:#1a1a18;border-bottom-color:#1a1a18;font-weight:500}
+.card{background:#fff;border:0.5px solid #d3d1c7;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.h1{font-size:20px;font-weight:500;margin-bottom:0.5rem}
+.h2{font-size:16px;font-weight:500;margin-bottom:0.75rem}
+.muted{font-size:13px;color:#888780}
+input[type=text],input[type=password],select,textarea{width:100%;padding:8px 12px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:14px;background:#fff;color:#1a1a18;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#888780}
+textarea{resize:vertical;min-height:60px}
+label{font-size:13px;color:#5f5e5a;display:block;margin-bottom:4px}
+.field{margin-bottom:1rem}
+button{display:inline-block;padding:8px 16px;border:0.5px solid #d3d1c7;border-radius:8px;font-size:14px;cursor:pointer;background:#fff;color:#1a1a18}
+button:disabled{opacity:0.45;cursor:not-allowed}
+.btn-primary{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.btn-sm{padding:5px 12px;font-size:13px}
+.btn-danger{color:#a32d2d;border-color:#f7c1c1}
+.btn-export{background:#27500a;color:#fff;border-color:#27500a}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500}
+.badge-blue{background:#e6f1fb;color:#0c447c}
+.badge-anon{background:#faeeda;color:#633806}
+.score-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.score-btn{width:44px;height:44px;border:0.5px solid #d3d1c7;border-radius:8px;cursor:pointer;font-size:15px;font-weight:500;background:#fff;color:#1a1a18}
+.score-btn.sel{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.score-btn.na{width:auto;padding:0 12px;font-size:13px}
+.progress{height:4px;background:#d3d1c7;border-radius:2px;margin-bottom:1.5rem}
+.progress-fill{height:100%;background:#1a1a18;border-radius:2px;transition:width 0.3s}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid #d3d1c7}
+.stat-row:last-child{border-bottom:none}
+.sep{height:1px;background:#d3d1c7;margin:1rem 0}
+.q-block{margin-bottom:1.25rem}
+.q-label{font-size:14px;margin-bottom:8px;color:#5f5e5a}
+details summary{cursor:pointer;font-size:14px;color:#888780;padding:6px 0}
+details[open] summary{color:#1a1a18}
+.info-notice{display:flex;align-items:flex-start;gap:10px;background:#f4f4f1;border-radius:8px;padding:10px 14px;font-size:13px;color:#5f5e5a;margin-bottom:1rem}
+.code-box{font-family:monospace;font-size:22px;font-weight:600;letter-spacing:4px;padding:12px 20px;background:#f4f4f1;border-radius:8px;display:inline-block;cursor:pointer;border:0.5px solid #d3d1c7}
+.alert{padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:1rem}
+.alert-ok{background:#eaf3de;color:#27500a}
+.alert-err{background:#fcebeb;color:#791f1f}
+.alert-warn{background:#faeeda;color:#633806}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #d3d1c7;border-top-color:#1a1a18;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.setup-step{display:flex;gap:12px;padding:12px 0;border-bottom:0.5px solid #d3d1c7}
+.setup-step:last-child{border-bottom:none}
+.step-num{width:26px;height:26px;background:#1a1a18;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0;margin-top:1px}
+.code-inline{font-family:monospace;font-size:13px;background:#f4f4f1;padding:2px 7px;border-radius:4px;border:0.5px solid #d3d1c7}
+</style>
+</head>
+<body>
+<div class="shell"><div id="app">Загрузка...</div></div>
+<script>
+// ═══════════════════════════════════════════════
+//  НАСТРОЙКИ — ВСТАВЬТЕ ВАШИ ДАННЫЕ SUPABASE
+// ═══════════════════════════════════════════════
+const SUPABASE_URL = 'https://cvaeztimgfdllcwbzxmk.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_2ugrqwNDSugXvGY8T3Dthw_0mWvg60u';
+const ADMIN_PASS = 'steel2024';
+// ═══════════════════════════════════════════════
+
+const CONFIGURED = SUPABASE_URL !== 'ВСТАВЬТЕ_URL_ЗДЕСЬ';
+
+const DEPTS = ['Отдел маркетинга и рекламы','Контакт-центр','Технический отдел','Отдел экспортных продаж','Группа сопровождения сделок','Отдел по работе с дилерской сетью по ЦФО','Отдел по работе с дилерской сетью по Уральскому ФО','Отдел по работе с дилерской сетью по СЗФО','Отдел по работе с дилерской сетью по ПФО','Отдел по работе с дилерской сетью по ЮФО','Отдел по работе с дилерской сетью Москвы и МО','Отдел труда и заработной платы','Административно-хозяйственный отдел','Бухгалтерия','Финансово-экономический отдел','Отдел автоматизации','АУП','ПСК','Склад','Заготовительный участок','Участок профилирования','Опытно-производственный участок','Участок окраски','Участок упаковки','Участок кровли','Служба диспетчеризации','Прессовый участок','Юридический отдел','Отдел обучения и технического развития','Информационно-техническая служба','Отдел комплектации и поставок','Отдел охраны труда и экологии','Служба эксплуатации и транспорта','Обособленное подразделение в г. Санкт-Петербург (склад)','Обособленное подразделение в г. Краснодар (склад)','Обособленное подразделение в г. Екатеринбург (склад)','Департамент главного инженера','Департамент главного бухгалтера','Департамент заместителя генерального директора'];
+const CRITERIA = ['Отзывчивость, доброжелательность, радушие','Качество оказания услуг коллегам','Оказание помощи смежным подразделениям при решении задач','Оперативность оказания услуг коллегам'];
+
+// ── Supabase helpers ──────────────────────────────────────────────
+const headers = () => ({'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY});
+
+async function sbGet(table, filters='') {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filters}&order=created_at.asc`, {headers: headers()});
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbInsert(table, data) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {method:'POST', headers:{...headers(),'Prefer':'return=minimal'}, body: JSON.stringify(data)});
+  if (!r.ok) throw new Error(await r.text());
+}
+async function sbDelete(table, filters) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filters}`, {method:'DELETE', headers: headers()});
+  if (!r.ok) throw new Error(await r.text());
+}
+async function sbDeleteAll(table) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=neq.0`, {method:'DELETE', headers: headers()});
+  if (!r.ok) throw new Error(await r.text());
+}
+
+// ── State ────────────────────────────────────────────────────────
+let S = {
+  tab:'survey', adminAuth:false,
+  groups:[], responses:[], loading:true,
+  newGroupName:'', newGroupDepts:[], adminMsg:'', adminErr:'',
+  step:0, code:'', currentGroup:null,
+  deptIdx:0, answers:{}, surveyMsg:'', saving:false,
+  resultDept:'', deptFilter:'', resultLoading:false
+};
+
+// Блокировка повтора — localStorage (на устройство, без логина)
+const doneKey = code => 'sv_done_'+code;
+const markDone = code => { try{ localStorage.setItem(doneKey(code),'1'); }catch(e){} };
+const isDone = code => { try{ return !!localStorage.getItem(doneKey(code)); }catch(e){ return false; } };
+
+function genCode() { const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; for(let i=0;i<5;i++) c+=ch[Math.floor(Math.random()*ch.length)]; return c; }
+const esc = s => s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+const countResp = code => S.responses.filter(r=>r.group_code===code).length;
+
+// ── Load ──────────────────────────────────────────────────────────
+async function load() {
+  if (!CONFIGURED) { S.loading = false; render(); return; }
+  try { S.groups = await sbGet('sv_groups'); } catch(e) { console.error(e); }
+  S.loading = false;
+  render();
+}
+
+async function loadResponses() {
+  S.resultLoading = true; render();
+  try { S.responses = await sbGet('sv_responses'); } catch(e) { console.error(e); }
+  S.resultLoading = false; render();
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('app').innerHTML = buildHtml();
+}
+
+function buildHtml() {
+  if (!CONFIGURED) return renderSetup();
+  if (S.loading) return `<div style="padding:3rem;text-align:center;color:#888780"><span class="spinner"></span>Загрузка...</div>`;
+  return `
+    <div style="margin-bottom:1rem">
+      <div class="muted" style="margin-bottom:4px">ООО «СТИЛ ТЕХНОЛОДЖИ» · Оценка за 1 квартал</div>
+      <div style="font-size:22px;font-weight:500">Опрос компетенций подразделений</div>
+    </div>
+    <div class="tabs">
+      ${mkTab('survey','Пройти опрос')}
+      ${S.adminAuth ? mkTab('results','Результаты') : ''}
+      ${mkTab('admin', S.adminAuth ? 'Администратор' : 'Войти')}
+    </div>
+    ${S.tab==='survey' ? renderSurvey() : S.tab==='results' ? renderResults() : renderAdmin()}
+  `;
+}
+
+function mkTab(id,label) { return `<button class="tab${S.tab===id?' active':''}" onclick="setTab('${id}')">${label}</button>`; }
+
+// ── Setup screen ──────────────────────────────────────────────────
+function renderSetup() {
+  return `
+  <div style="margin-bottom:1.5rem">
+    <div class="muted" style="margin-bottom:4px">ООО «СТИЛ ТЕХНОЛОДЖИ»</div>
+    <div style="font-size:22px;font-weight:500">Настройка опроса</div>
+  </div>
+  <div class="card">
+    <div class="h2" style="margin-bottom:0.25rem">Приложение не настроено</div>
+    <div class="muted" style="margin-bottom:1.25rem">Следуйте инструкции — займёт около 10 минут. Всё бесплатно.</div>
+
+    <div class="setup-step">
+      <div class="step-num">1</div>
+      <div>
+        <div style="font-weight:500;font-size:14px;margin-bottom:4px">Создайте аккаунт Supabase</div>
+        <div class="muted">Зайдите на <a href="https://supabase.com" target="_blank" style="color:#185fa5">supabase.com</a> → Sign up (бесплатно, через GitHub или email)</div>
+      </div>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">2</div>
+      <div>
+        <div style="font-weight:500;font-size:14px;margin-bottom:4px">Создайте новый проект</div>
+        <div class="muted">New project → название любое → придумайте пароль БД → регион Europe (Frankfurt) → Create</div>
+      </div>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">3</div>
+      <div>
+        <div style="font-weight:500;font-size:14px;margin-bottom:6px">Создайте таблицы</div>
+        <div class="muted" style="margin-bottom:8px">Перейдите в <b>SQL Editor</b> → New query → вставьте этот код и нажмите Run:</div>
+        <textarea onclick="this.select()" readonly style="font-family:monospace;font-size:12px;height:200px;background:#f4f4f1;color:#1a1a18">create table sv_groups (
+  id bigserial primary key,
+  code text unique not null,
+  name text not null,
+  depts jsonb not null,
+  created_at timestamptz default now()
+);
+
+create table sv_responses (
+  id bigserial primary key,
+  group_code text not null,
+  group_name text,
+  answers jsonb not null,
+  created_at timestamptz default now()
+);
+
+alter table sv_groups enable row level security;
+alter table sv_responses enable row level security;
+
+create policy "allow all" on sv_groups for all using (true) with check (true);
+create policy "allow all" on sv_responses for all using (true) with check (true);</textarea>
+      </div>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">4</div>
+      <div>
+        <div style="font-weight:500;font-size:14px;margin-bottom:4px">Скопируйте URL и ключ</div>
+        <div class="muted">Settings → API → скопируйте <b>Project URL</b> и <b>anon public key</b></div>
+      </div>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">5</div>
+      <div>
+        <div style="font-weight:500;font-size:14px;margin-bottom:4px">Вставьте в файл и разместите на GitHub Pages</div>
+        <div class="muted">Откройте <span class="code-inline">survey_final.html</span> в любом текстовом редакторе, найдите строки в начале файла и замените:</div>
+        <div style="background:#f4f4f1;border-radius:8px;padding:10px;margin-top:8px;font-family:monospace;font-size:12px;color:#1a1a18;line-height:1.8">
+          const SUPABASE_URL = '<span style="color:#a32d2d">ВАШ_URL</span>';<br>
+          const SUPABASE_ANON_KEY = '<span style="color:#a32d2d">ВАШ_КЛЮЧ</span>';
+        </div>
+        <div class="muted" style="margin-top:10px">Затем зайдите на <a href="https://github.com" target="_blank" style="color:#185fa5">github.com</a> → New repository → загрузите файл → Settings → Pages → Source: main → /root. Ссылка вида <span class="code-inline">username.github.io/repo/survey_final.html</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Survey ────────────────────────────────────────────────────────
+function renderSurvey() {
+  if (S.step===0) return renderCode();
+  if (S.step===1) return renderQs();
+  return renderDone();
+}
+
+function renderCode() {
+  const already = isDone(S.code.trim().toUpperCase());
+  return `
+  <div class="card">
+    <div class="h1">Введите код группы</div>
+    <div class="muted" style="margin-bottom:1rem">Код выдаёт организатор опроса</div>
+    ${S.surveyMsg ? `<div class="alert alert-err">${S.surveyMsg}</div>` : ''}
+    <div class="field">
+      <input type="text" placeholder="Например: AB3K7" maxlength="6"
+        value="${S.code}" style="font-size:20px;letter-spacing:3px;font-family:monospace;text-transform:uppercase"
+        oninput="S.code=this.value.toUpperCase();render()" onkeydown="if(event.key==='Enter')submitCode()">
+    </div>
+    ${already ? `<div class="alert alert-warn">Вы уже прошли опрос с этим кодом. Повторное прохождение ограничено.</div>` : ''}
+    <button class="btn-primary" onclick="submitCode()" style="width:100%" ${already?'disabled':''}>Продолжить →</button>
+  </div>
+  <div class="info-notice">
+    <span style="font-size:15px">🔒</span>
+    <span>Опрос полностью анонимен. Ваши ответы не будут связаны с вашим именем.</span>
+  </div>`;
+}
+
+function renderQs() {
+  const g=S.currentGroup, total=g.depts.length, di=S.deptIdx, dept=g.depts[di];
+  const pct=Math.round(di/total*100);
+  return `
+  <div style="margin-bottom:0.5rem;display:flex;justify-content:space-between">
+    <span class="muted">Подразделение ${di+1} из ${total}</span>
+    <span class="muted">${pct}%</span>
+  </div>
+  <div class="progress"><div class="progress-fill" style="width:${pct}%"></div></div>
+  ${S.surveyMsg ? `<div class="alert alert-err">${S.surveyMsg}</div>` : ''}
+  <div class="card">
+    <div class="badge badge-anon" style="margin-bottom:0.75rem;font-size:11px">🔒 Анонимно</div>
+    <div class="h2" style="margin-bottom:1.25rem">Оцените отдел: <span style="color:#533ab7">${dept}</span></div>
+    ${CRITERIA.map((c,qi) => {
+      const a = (S.answers[dept]||{})[qi]||{};
+      return `<div class="q-block">
+        <div class="q-label">${qi+1}. ${c}</div>
+        <div class="score-row">
+          ${[1,2,3,4,5].map(n=>`<button class="score-btn${a.score===n?' sel':''}" onclick="setScore('${esc(dept)}',${qi},${n})">${n}</button>`).join('')}
+          <button class="score-btn na${a.score===0?' sel':''}" onclick="setScore('${esc(dept)}',${qi},0)">Не взаимодействую</button>
+        </div>
+        <textarea placeholder="Пожелания / рекомендации (необязательно)" oninput="setText('${esc(dept)}',${qi},this.value)" style="margin-top:6px;font-size:13px">${a.text||''}</textarea>
+      </div>`;
+    }).join('')}
+    <div class="sep"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      ${di>0 ? `<button onclick="prevDept()">← Назад</button>` : '<span></span>'}
+      ${di<total-1
+        ? `<button class="btn-primary" onclick="nextDept()">Следующий отдел →</button>`
+        : `<button class="btn-primary" onclick="submitSurvey()" ${S.saving?'disabled':''}>${S.saving?'<span class="spinner"></span>Сохраняем...':'Отправить ответы ✓'}</button>`}
+    </div>
+  </div>`;
+}
+
+function renderDone() {
+  const g = S.currentGroup;
+  return `
+  <div class="card" style="text-align:center;padding:2.5rem 2rem">
+    <div style="width:64px;height:64px;background:#eaf3de;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:28px;color:#27500a">✓</div>
+    <div style="font-size:22px;font-weight:500;margin-bottom:0.5rem">Спасибо за прохождение опроса!</div>
+    <div style="font-size:15px;color:#5f5e5a;margin-bottom:0.25rem">Ваши ответы успешно сохранены и будут учтены при формировании оценки КПЭ за 1 квартал.</div>
+    <div style="font-size:13px;color:#888780;margin-bottom:1.75rem">Вы оценили ${g?g.depts.length:0} подразделений</div>
+    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
+      <span class="badge badge-anon">🔒 Ответы анонимны</span>
+      <span class="badge badge-blue">Повторное прохождение недоступно</span>
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-size:13px;color:#5f5e5a;line-height:1.6">
+      Результаты опроса будут обработаны и отражены в картах КПЭ сотрудников.<br>
+      Если у вас есть вопросы — обратитесь к организатору опроса.
+    </div>
+  </div>`;
+}
+
+// ── Results ───────────────────────────────────────────────────────
+function renderResults() {
+  if (S.resultLoading) return `<div style="padding:2rem;text-align:center;color:#888780"><span class="spinner"></span>Загрузка ответов...</div>`;
+
+  const depts = [...new Set(S.responses.flatMap(r=>Object.keys(r.answers||{})))].sort();
+  if (!depts.length) return `
+    <div class="card">
+      <div class="muted" style="margin-bottom:1rem">Ответов пока нет</div>
+      <button onclick="loadResponses()">Обновить</button>
+    </div>`;
+
+  const stats = depts.map(d => {
+    const byQ = CRITERIA.map((_,qi) => {
+      const sc = S.responses.flatMap(r => {
+        const da=r.answers[d]; if(!da||!da[qi]||da[qi].score===0) return []; return [da[qi].score];
+      });
+      const na = S.responses.filter(r=>r.answers[d]&&r.answers[d][qi]&&r.answers[d][qi].score===0).length;
+      return {avg:sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length):null, count:sc.length, na};
+    });
+    const vals = byQ.map(q=>q.avg).filter(v=>v!==null);
+    return {d, avg:vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null, count:S.responses.filter(r=>r.answers[d]).length, byQ};
+  });
+
+  const sel = S.resultDept;
+  let detail = '';
+  if (sel) {
+    const ds = stats.find(x=>x.d===sel);
+    const comments = S.responses.flatMap(r=>{
+      const da=r.answers[sel]; if(!da) return [];
+      return CRITERIA.flatMap((_,qi)=>da[qi]&&da[qi].text?[{q:qi,text:da[qi].text}]:[]);
+    });
+    detail = `
+    <div class="card" style="margin-top:1rem">
+      <div class="h2">${sel}</div>
+      <div class="muted" style="margin-bottom:1rem">Ответов: ${ds.count}</div>
+      ${CRITERIA.map((c,qi) => {
+        const q=ds.byQ[qi];
+        return `<div class="stat-row">
+          <div style="flex:1;padding-right:12px">
+            <div style="font-size:14px">${c}</div>
+            <div class="muted">${q.count} оценок${q.na?` · ${q.na} «не взаимодействую»`:''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:18px;font-weight:500">${q.avg?q.avg.toFixed(2):'—'}</div>
+            ${q.avg?`<div style="display:flex;gap:3px;justify-content:flex-end;margin-top:3px">${[1,2,3,4,5].map(n=>`<span style="display:inline-block;height:8px;border-radius:2px;background:#1a1a18;width:${n<=Math.round(q.avg)?14:4}px;opacity:${n<=Math.round(q.avg)?1:0.2}"></span>`).join('')}</div>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+      ${comments.length?`
+        <div class="sep"></div>
+        <div class="h2">Комментарии</div>
+        ${comments.map(c=>`<div style="padding:8px 0;border-bottom:0.5px solid #d3d1c7">
+          <div class="muted" style="font-size:12px">${CRITERIA[c.q]}</div>
+          <div style="font-size:14px;margin-top:4px">${c.text}</div>
+        </div>`).join('')}`:''}
+    </div>`;
+  }
+
+  return `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+      <div>
+        <div class="h2" style="margin-bottom:2px">Сводка по подразделениям</div>
+        <div class="muted">Всего ответов: ${S.responses.length}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-sm" onclick="loadResponses()">↻ Обновить</button>
+        <button class="btn-export btn-sm" onclick="exportExcel()">↓ Excel</button>
+      </div>
+    </div>
+    ${stats.sort((a,b)=>(b.avg||0)-(a.avg||0)).map(ds=>`
+      <div class="stat-row" style="cursor:pointer" onclick="selectDept('${esc(ds.d)}')">
+        <div>
+          <div style="font-size:14px;font-weight:${sel===ds.d?'500':'400'}">${ds.d}</div>
+          <div class="muted">${ds.count} отв.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:16px;font-weight:500">${ds.avg?ds.avg.toFixed(2):'—'}</div>
+          <div style="width:6px;height:6px;border-radius:50%;background:${sel===ds.d?'#1a1a18':'#d3d1c7'}"></div>
+        </div>
+      </div>`).join('')}
+  </div>
+  ${detail}
+  ${S.responses.length?`<div style="margin-top:0.5rem;text-align:right"><button class="btn-sm btn-danger" onclick="if(confirm('Удалить ВСЕ ответы?')){clearResp()}">Очистить все ответы</button></div>`:''}`;
+}
+
+// ── Admin ─────────────────────────────────────────────────────────
+function renderAdmin() {
+  if (!S.adminAuth) return `
+  <div class="card">
+    <div class="h1">Вход для администратора</div>
+    ${S.adminErr ? `<div class="alert alert-err">${S.adminErr}</div>` : ''}
+    <div class="field"><label>Пароль</label><input type="password" id="passInput" onkeydown="if(event.key==='Enter')checkPass()"></div>
+    <button class="btn-primary" onclick="checkPass()">Войти</button>
+  </div>`;
+
+  const fd = S.deptFilter ? DEPTS.filter(d=>d.toLowerCase().includes(S.deptFilter.toLowerCase())) : DEPTS;
+
+  return `
+  ${S.adminMsg ? `<div class="alert alert-ok">${S.adminMsg}</div>` : ''}
+  <div class="card">
+    <div class="h2">Создать группу голосующих</div>
+    <div class="muted" style="margin-bottom:1rem">Группа — набор отделов для оценки. Участники группы получают один код и проходят опрос анонимно.</div>
+    <div class="field">
+      <label>Название группы</label>
+      <input type="text" id="newGroupName" value="${S.newGroupName}" placeholder="Например: Продажи оценивают поддержку">
+    </div>
+    <div class="field">
+      <label>Отделы для оценки</label>
+      <input type="text" placeholder="Поиск отдела..." oninput="S.deptFilter=this.value;render()" value="${S.deptFilter}" style="margin-bottom:8px">
+      <div style="max-height:200px;overflow-y:auto;border:0.5px solid #d3d1c7;border-radius:8px;padding:8px">
+        ${fd.map(d=>`
+          <div style="padding:6px 8px;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:8px;font-size:14px;${S.newGroupDepts.includes(d)?'background:#e6f1fb;color:#0c447c':''}" onclick="toggleDept('${esc(d)}')">
+            <span style="width:16px;height:16px;border:1.5px solid ${S.newGroupDepts.includes(d)?'#378add':'#d3d1c7'};border-radius:3px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:${S.newGroupDepts.includes(d)?'#378add':'transparent'};color:#fff;font-size:10px">${S.newGroupDepts.includes(d)?'✓':''}</span>
+            ${d}
+          </div>`).join('')}
+      </div>
+      <div class="muted" style="margin-top:6px">Выбрано: ${S.newGroupDepts.length}</div>
+    </div>
+    <button class="btn-primary" onclick="createGroup()">Создать группу</button>
+  </div>
+
+  <div class="card">
+    <div class="h2">Группы опросов</div>
+    ${!S.groups.length ? `<div class="muted">Нет групп</div>` : ''}
+    ${S.groups.map((g,i)=>`
+      <div style="padding:12px 0;border-bottom:0.5px solid #d3d1c7">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:500;font-size:15px">${g.name}</div>
+            <div class="muted">${g.depts.length} подразд. · ${countResp(g.code)} ответов</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div class="code-box" onclick="copyCode('${g.code}')" title="Нажмите чтобы скопировать">${g.code}</div>
+            <button class="btn-sm btn-danger" onclick="delGroup(${g.id})">✕</button>
+          </div>
+        </div>
+        <details style="margin-top:8px">
+          <summary>Отделы (${g.depts.length})</summary>
+          <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${g.depts.map(d=>`<span class="badge badge-blue">${d}</span>`).join('')}</div>
+        </details>
+      </div>`).join('')}
+  </div>
+  <div style="text-align:right;margin-top:0.5rem">
+    <button class="btn-sm" onclick="S.adminAuth=false;if(S.tab==='results')S.tab='survey';render()">Выйти</button>
+  </div>`;
+}
+
+// ── Actions ───────────────────────────────────────────────────────
+window.setTab = function(t) {
+  if (t==='results' && !S.adminAuth) { S.tab='admin'; render(); return; }
+  S.tab=t;
+  if (t==='results') loadResponses();
+  else render();
+};
+
+window.submitCode = function() {
+  const code = S.code.trim().toUpperCase();
+  if (isDone(code)) { S.surveyMsg='Вы уже прошли этот опрос'; render(); return; }
+  const g = S.groups.find(x=>x.code===code);
+  if (!g) { S.surveyMsg='Группа с таким кодом не найдена'; render(); return; }
+  S.surveyMsg=''; S.currentGroup=g; S.deptIdx=0; S.answers={}; S.step=1; render();
+};
+
+window.setScore = function(dept,qi,score) {
+  if (!S.answers[dept]) S.answers[dept]={};
+  if (!S.answers[dept][qi]) S.answers[dept][qi]={score:null,text:''};
+  S.answers[dept][qi].score=score; S.surveyMsg=''; render();
+};
+window.setText = function(dept,qi,text) {
+  if (!S.answers[dept]) S.answers[dept]={};
+  if (!S.answers[dept][qi]) S.answers[dept][qi]={score:null,text:''};
+  S.answers[dept][qi].text=text;
+};
+window.nextDept = function() {
+  const d=S.currentGroup.depts[S.deptIdx];
+  for (let qi=0;qi<CRITERIA.length;qi++) {
+    const a=(S.answers[d]||{})[qi];
+    if (!a||a.score===null) { S.surveyMsg=`Ответьте на вопрос ${qi+1}`; render(); return; }
+  }
+  S.surveyMsg=''; S.deptIdx++; render(); window.scrollTo(0,0);
+};
+window.prevDept = function() { S.deptIdx--; render(); window.scrollTo(0,0); };
+
+window.submitSurvey = async function() {
+  const d=S.currentGroup.depts[S.deptIdx];
+  for (let qi=0;qi<CRITERIA.length;qi++) {
+    const a=(S.answers[d]||{})[qi];
+    if (!a||a.score===null) { S.surveyMsg=`Ответьте на вопрос ${qi+1}`; render(); return; }
+  }
+  S.saving=true; render();
+  try {
+    await sbInsert('sv_responses', {
+      group_code: S.currentGroup.code,
+      group_name: S.currentGroup.name,
+      answers: S.answers
+    });
+    markDone(S.currentGroup.code);
+    S.saving=false; S.step=2; render();
+  } catch(e) {
+    S.saving=false;
+    S.surveyMsg='Ошибка при сохранении. Проверьте интернет и попробуйте снова.';
+    render();
+  }
+};
+
+window.selectDept = d => { S.resultDept=S.resultDept===d?'':d; render(); };
+
+window.clearResp = async function() {
+  try { await sbDeleteAll('sv_responses'); S.responses=[]; render(); } catch(e) { alert('Ошибка: '+e.message); }
+};
+
+window.checkPass = function() {
+  const p=document.getElementById('passInput').value;
+  if (p===ADMIN_PASS) { S.adminAuth=true; S.adminErr=''; S.tab='admin'; render(); }
+  else { S.adminErr='Неверный пароль'; render(); }
+};
+
+window.toggleDept = d => {
+  const i=S.newGroupDepts.indexOf(d);
+  if (i===-1) S.newGroupDepts.push(d); else S.newGroupDepts.splice(i,1); render();
+};
+
+window.createGroup = async function() {
+  const name=document.getElementById('newGroupName').value.trim();
+  if (!name) { alert('Введите название'); return; }
+  if (!S.newGroupDepts.length) { alert('Выберите отделы'); return; }
+  const code=genCode();
+  try {
+    await sbInsert('sv_groups', {code, name, depts: S.newGroupDepts});
+    S.groups = await sbGet('sv_groups');
+    S.adminMsg=`Группа «${name}» создана. Код: ${code}`;
+    S.newGroupName=''; S.newGroupDepts=[]; S.deptFilter=''; render();
+  } catch(e) { alert('Ошибка: '+e.message); }
+};
+
+window.delGroup = async function(id) {
+  if (!confirm('Удалить группу?')) return;
+  try {
+    await sbDelete('sv_groups', `id=eq.${id}`);
+    S.groups = S.groups.filter(g=>g.id!==id); render();
+  } catch(e) { alert('Ошибка: '+e.message); }
+};
+
+window.copyCode = function(code) {
+  navigator.clipboard.writeText(code).then(()=>{ S.adminMsg=`Код ${code} скопирован`; render(); });
+};
+
+window.exportExcel = function() {
+  if (!S.responses.length) { alert('Нет данных'); return; }
+  const wb=XLSX.utils.book_new();
+  const depts=[...new Set(S.responses.flatMap(r=>Object.keys(r.answers||{})))].sort();
+
+  const sum=[['Подразделение','Кол-во ответов','Средний балл',...CRITERIA]];
+  depts.forEach(d=>{
+    const byQ=CRITERIA.map((_,qi)=>{
+      const sc=S.responses.flatMap(r=>{const da=r.answers[d];if(!da||!da[qi]||da[qi].score===0)return[];return[da[qi].score];});
+      return sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length):null;
+    });
+    const vals=byQ.filter(v=>v!==null);
+    const avg=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null;
+    sum.push([d,S.responses.filter(r=>r.answers[d]).length,avg?+avg.toFixed(2):'',...byQ.map(v=>v?+v.toFixed(2):'')]);
+  });
+  const ws1=XLSX.utils.aoa_to_sheet(sum);
+  ws1['!cols']=[{wch:45},{wch:16},{wch:14},...CRITERIA.map(()=>({wch:22}))];
+  XLSX.utils.book_append_sheet(wb,ws1,'Сводка');
+
+  const com=[['Подразделение','Критерий','Комментарий','Дата']];
+  S.responses.forEach(r=>{
+    Object.keys(r.answers||{}).forEach(d=>{
+      CRITERIA.forEach((c,qi)=>{ const a=r.answers[d][qi]; if(a&&a.text)com.push([d,c,a.text,r.created_at?r.created_at.slice(0,10):'']); });
+    });
+  });
+  const ws2=XLSX.utils.aoa_to_sheet(com);
+  ws2['!cols']=[{wch:45},{wch:50},{wch:60},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Комментарии');
+
+  depts.forEach(d=>{
+    const rows=[['Критерий','Оценка','Дата']];
+    S.responses.forEach(r=>{
+      const da=r.answers[d]; if(!da)return;
+      CRITERIA.forEach((c,qi)=>{ const a=da[qi]; if(!a)return; rows.push([c,a.score===0?'Не взаимодействую':a.score,r.created_at?r.created_at.slice(0,10):'']); });
+    });
+    if (rows.length>1) {
+      const ws=XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols']=[{wch:50},{wch:22},{wch:12}];
+      XLSX.utils.book_append_sheet(wb,ws,d.length>31?d.substring(0,31):d);
+    }
+  });
+
+  XLSX.writeFile(wb,`КПЭ_опрос_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+load().then(render);
+</script>
+</body>
+</html>
