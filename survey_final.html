@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Опрос КПЭ — СТИЛ ТЕХНОЛОДЖИ</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js  "></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#f4f4f1;color:#1a1a18;min-height:100vh}
@@ -63,7 +63,7 @@ details[open] summary{color:#1a1a18}
 // ═══════════════════════════════════════════════
 //  НАСТРОЙКИ — ВСТАВЬТЕ ВАШИ ДАННЫЕ SUPABASE
 // ═══════════════════════════════════════════════
-const SUPABASE_URL = 'https://cvaeztimgfdllcwbzxmk.supabase.co';
+const SUPABASE_URL = 'https://cvaeztimgfdllcwbzxmk.supabase.co  ';
 const SUPABASE_ANON_KEY = 'sb_publishable_2ugrqwNDSugXvGY8T3Dthw_0mWvg60u';
 const ADMIN_PASS = 'steel2024';
 // ═══════════════════════════════════════════════
@@ -71,7 +71,15 @@ const ADMIN_PASS = 'steel2024';
 const CONFIGURED = SUPABASE_URL !== 'ВСТАВЬТЕ_URL_ЗДЕСЬ';
 
 const DEPTS = ['Отдел маркетинга и рекламы','Контакт-центр','Технический отдел','Отдел экспортных продаж','Группа сопровождения сделок','Отдел по работе с дилерской сетью по ЦФО','Отдел по работе с дилерской сетью по Уральскому ФО','Отдел по работе с дилерской сетью по СЗФО','Отдел по работе с дилерской сетью по ПФО','Отдел по работе с дилерской сетью по ЮФО','Отдел по работе с дилерской сетью Москвы и МО','Отдел труда и заработной платы','Административно-хозяйственный отдел','Бухгалтерия','Финансово-экономический отдел','Отдел автоматизации','АУП','ПСК','Склад','Заготовительный участок','Участок профилирования','Опытно-производственный участок','Участок окраски','Участок упаковки','Участок кровли','Служба диспетчеризации','Прессовый участок','Юридический отдел','Отдел обучения и технического развития','Информационно-техническая служба','Отдел комплектации и поставок','Отдел охраны труда и экологии','Служба эксплуатации и транспорта','Обособленное подразделение в г. Санкт-Петербург (склад)','Обособленное подразделение в г. Краснодар (склад)','Обособленное подразделение в г. Екатеринбург (склад)','Департамент главного инженера','Департамент главного бухгалтера','Департамент заместителя генерального директора'];
-const CRITERIA = ['Отзывчивость, доброжелательность, радушие','Качество оказания услуг коллегам','Оказание помощи смежным подразделениям при решении задач','Оперативность оказания услуг коллегам'];
+
+// ★ ИЗМЕНЕНИЕ: добавлен 5-й критерий — обязательное поле для комментариев
+const CRITERIA = [
+  'Отзывчивость, доброжелательность, радушие',
+  'Качество оказания услуг коллегам',
+  'Оказание помощи смежным подразделениям при решении задач',
+  'Оперативность оказания услуг коллегам',
+  'Ваши пожелания / рекомендации'
+];
 
 // ── Supabase helpers ──────────────────────────────────────────────
 const headers = () => ({'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY});
@@ -166,7 +174,7 @@ function renderSetup() {
       <div class="step-num">1</div>
       <div>
         <div style="font-weight:500;font-size:14px;margin-bottom:4px">Создайте аккаунт Supabase</div>
-        <div class="muted">Зайдите на <a href="https://supabase.com" target="_blank" style="color:#185fa5">supabase.com</a> → Sign up (бесплатно, через GitHub или email)</div>
+        <div class="muted">Зайдите на <a href="https://supabase.com  " target="_blank" style="color:#185fa5">supabase.com</a> → Sign up (бесплатно, через GitHub или email)</div>
       </div>
     </div>
 
@@ -224,7 +232,7 @@ create policy "allow all" on sv_responses for all using (true) with check (true)
           const SUPABASE_URL = '<span style="color:#a32d2d">ВАШ_URL</span>';<br>
           const SUPABASE_ANON_KEY = '<span style="color:#a32d2d">ВАШ_КЛЮЧ</span>';
         </div>
-        <div class="muted" style="margin-top:10px">Затем зайдите на <a href="https://github.com" target="_blank" style="color:#185fa5">github.com</a> → New repository → загрузите файл → Settings → Pages → Source: main → /root. Ссылка вида <span class="code-inline">username.github.io/repo/survey_final.html</span></div>
+        <div class="muted" style="margin-top:10px">Затем зайдите на <a href="https://github.com  " target="_blank" style="color:#185fa5">github.com</a> → New repository → загрузите файл → Settings → Pages → Source: main → /root. Ссылка вида <span class="code-inline">username.github.io/repo/survey_final.html</span></div>
       </div>
     </div>
   </div>`;
@@ -273,14 +281,23 @@ function renderQs() {
     <div class="h2" style="margin-bottom:1.25rem">Оцените отдел: <span style="color:#533ab7">${dept}</span></div>
     ${CRITERIA.map((c,qi) => {
       const a = (S.answers[dept]||{})[qi]||{};
-      return `<div class="q-block">
-        <div class="q-label">${qi+1}. ${c}</div>
-        <div class="score-row">
-          ${[1,2,3,4,5].map(n=>`<button class="score-btn${a.score===n?' sel':''}" onclick="setScore('${esc(dept)}',${qi},${n})">${n}</button>`).join('')}
-          <button class="score-btn na${a.score===0?' sel':''}" onclick="setScore('${esc(dept)}',${qi},0)">Не взаимодействую</button>
-        </div>
-        <textarea placeholder="Пожелания / рекомендации (необязательно)" oninput="setText('${esc(dept)}',${qi},this.value)" style="margin-top:6px;font-size:13px">${a.text||''}</textarea>
-      </div>`;
+      // ★ ИЗМЕНЕНИЕ: вопросы 1-4 (qi 0-3) — только оценка, без текстового поля
+      if (qi < 4) {
+        return `<div class="q-block">
+          <div class="q-label">${qi+1}. ${c}</div>
+          <div class="score-row">
+            ${[1,2,3,4,5].map(n=>`<button class="score-btn${a.score===n?' sel':''}" onclick="setScore('${esc(dept)}',${qi},${n})">${n}</button>`).join('')}
+            <button class="score-btn na${a.score===0?' sel':''}" onclick="setScore('${esc(dept)}',${qi},0)">Не взаимодействую</button>
+          </div>
+        </div>`;
+      }
+      // ★ ИЗМЕНЕНИЕ: вопрос 5 (qi 4) — только обязательное текстовое поле
+      else {
+        return `<div class="q-block">
+          <div class="q-label">${qi+1}. ${c} <span style="color:#a32d2d">*</span></div>
+          <textarea placeholder="Обязательное поле — напишите ваши пожелания" oninput="setText('${esc(dept)}',${qi},this.value)" style="margin-top:6px;font-size:13px;min-height:80px">${a.text||''}</textarea>
+        </div>`;
+      }
     }).join('')}
     <div class="sep"></div>
     <div style="display:flex;justify-content:space-between;align-items:center">
@@ -326,13 +343,15 @@ function renderResults() {
 
   const stats = depts.map(d => {
     const byQ = CRITERIA.map((_,qi) => {
+      // ★ Пропускаем 5-й вопрос (комментарии) при расчёте средних баллов
+      if (qi >= 4) return {avg:null, count:0, na:0};
       const sc = S.responses.flatMap(r => {
         const da=r.answers[d]; if(!da||!da[qi]||da[qi].score===0) return []; return [da[qi].score];
       });
       const na = S.responses.filter(r=>r.answers[d]&&r.answers[d][qi]&&r.answers[d][qi].score===0).length;
       return {avg:sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length):null, count:sc.length, na};
     });
-    const vals = byQ.map(q=>q.avg).filter(v=>v!==null);
+    const vals = byQ.filter(q=>q.avg!==null);
     return {d, avg:vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null, count:S.responses.filter(r=>r.answers[d]).length, byQ};
   });
 
@@ -349,6 +368,15 @@ function renderResults() {
       <div class="h2">${sel}</div>
       <div class="muted" style="margin-bottom:1rem">Ответов: ${ds.count}</div>
       ${CRITERIA.map((c,qi) => {
+        // ★ Для 5-го вопроса показываем только комментарии, без оценки
+        if (qi >= 4) {
+          const qComments = comments.filter(x=>x.q===qi);
+          if (!qComments.length) return '';
+          return `<div class="stat-row" style="flex-direction:column;align-items:flex-start">
+            <div style="font-size:14px;font-weight:500;margin-bottom:6px">${c}</div>
+            ${qComments.map(cm=>`<div style="font-size:13px;color:#5f5e5a;padding:6px 0;border-bottom:0.5px solid #d3d1c7;width:100%">${cm.text}</div>`).join('')}
+          </div>`;
+        }
         const q=ds.byQ[qi];
         return `<div class="stat-row">
           <div style="flex:1;padding-right:12px">
@@ -361,13 +389,6 @@ function renderResults() {
           </div>
         </div>`;
       }).join('')}
-      ${comments.length?`
-        <div class="sep"></div>
-        <div class="h2">Комментарии</div>
-        ${comments.map(c=>`<div style="padding:8px 0;border-bottom:0.5px solid #d3d1c7">
-          <div class="muted" style="font-size:12px">${CRITERIA[c.q]}</div>
-          <div style="font-size:14px;margin-top:4px">${c.text}</div>
-        </div>`).join('')}`:''}
     </div>`;
   }
 
@@ -487,11 +508,19 @@ window.setText = function(dept,qi,text) {
   if (!S.answers[dept][qi]) S.answers[dept][qi]={score:null,text:''};
   S.answers[dept][qi].text=text;
 };
+
+// ★ ИЗМЕНЕНИЕ: обновлённая валидация — вопросы 1-4 требуют оценку, вопрос 5 требует текст
 window.nextDept = function() {
   const d=S.currentGroup.depts[S.deptIdx];
   for (let qi=0;qi<CRITERIA.length;qi++) {
     const a=(S.answers[d]||{})[qi];
-    if (!a||a.score===null) { S.surveyMsg=`Ответьте на вопрос ${qi+1}`; render(); return; }
+    if (qi < 4) {
+      // Вопросы 1-4: должна быть выбрана оценка
+      if (!a || a.score===null) { S.surveyMsg=`Ответьте на вопрос ${qi+1}`; render(); return; }
+    } else {
+      // Вопрос 5: должно быть заполнено текстовое поле
+      if (!a || !a.text || !a.text.trim()) { S.surveyMsg='Заполните поле с пожеланиями (вопрос 5)'; render(); return; }
+    }
   }
   S.surveyMsg=''; S.deptIdx++; render(); window.scrollTo(0,0);
 };
@@ -499,9 +528,14 @@ window.prevDept = function() { S.deptIdx--; render(); window.scrollTo(0,0); };
 
 window.submitSurvey = async function() {
   const d=S.currentGroup.depts[S.deptIdx];
+  // ★ Такая же валидация при отправке
   for (let qi=0;qi<CRITERIA.length;qi++) {
     const a=(S.answers[d]||{})[qi];
-    if (!a||a.score===null) { S.surveyMsg=`Ответьте на вопрос ${qi+1}`; render(); return; }
+    if (qi < 4) {
+      if (!a || a.score===null) { S.surveyMsg=`Ответьте на вопрос ${qi+1}`; render(); return; }
+    } else {
+      if (!a || !a.text || !a.text.trim()) { S.surveyMsg='Заполните поле с пожеланиями (вопрос 5)'; render(); return; }
+    }
   }
   S.saving=true; render();
   try {
@@ -566,9 +600,9 @@ window.exportExcel = function() {
   const wb=XLSX.utils.book_new();
   const depts=[...new Set(S.responses.flatMap(r=>Object.keys(r.answers||{})))].sort();
 
-  const sum=[['Подразделение','Кол-во ответов','Средний балл',...CRITERIA]];
+  const sum=[['Подразделение','Кол-во ответов','Средний балл',...CRITERIA.slice(0,4)]]; // ★ Исключаем 5-й вопрос из сводки оценок
   depts.forEach(d=>{
-    const byQ=CRITERIA.map((_,qi)=>{
+    const byQ=CRITERIA.slice(0,4).map((_,qi)=>{ // ★ Только первые 4 вопроса для расчёта среднего
       const sc=S.responses.flatMap(r=>{const da=r.answers[d];if(!da||!da[qi]||da[qi].score===0)return[];return[da[qi].score];});
       return sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length):null;
     });
@@ -577,7 +611,7 @@ window.exportExcel = function() {
     sum.push([d,S.responses.filter(r=>r.answers[d]).length,avg?+avg.toFixed(2):'',...byQ.map(v=>v?+v.toFixed(2):'')]);
   });
   const ws1=XLSX.utils.aoa_to_sheet(sum);
-  ws1['!cols']=[{wch:45},{wch:16},{wch:14},...CRITERIA.map(()=>({wch:22}))];
+  ws1['!cols']=[{wch:45},{wch:16},{wch:14},...CRITERIA.slice(0,4).map(()=>({wch:22}))];
   XLSX.utils.book_append_sheet(wb,ws1,'Сводка');
 
   const com=[['Подразделение','Критерий','Комментарий','Дата']];
@@ -594,7 +628,7 @@ window.exportExcel = function() {
     const rows=[['Критерий','Оценка','Дата']];
     S.responses.forEach(r=>{
       const da=r.answers[d]; if(!da)return;
-      CRITERIA.forEach((c,qi)=>{ const a=da[qi]; if(!a)return; rows.push([c,a.score===0?'Не взаимодействую':a.score,r.created_at?r.created_at.slice(0,10):'']); });
+      CRITERIA.slice(0,4).forEach((c,qi)=>{ const a=da[qi]; if(!a)return; rows.push([c,a.score===0?'Не взаимодействую':a.score,r.created_at?r.created_at.slice(0,10):'']); }); // ★ Только первые 4 вопроса
     });
     if (rows.length>1) {
       const ws=XLSX.utils.aoa_to_sheet(rows);
