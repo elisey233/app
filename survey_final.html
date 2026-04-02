@@ -595,60 +595,102 @@ window.copyCode = function(code) {
 };
 
 window.exportExcel = function() {
-  if (!S.responses.length) { alert('Нет данных'); return; }
-  const wb=XLSX.utils.book_new();
-  const depts=[...new Set(S.responses.flatMap(r=>Object.keys(r.answers||{})))].sort();
+  try {
+    // Проверка наличия библиотеки
+    if (typeof XLSX === 'undefined') {
+      alert('Ошибка: библиотека XLSX не загружена. Проверьте подключение к интернету.');
+      console.error('XLSX library not loaded');
+      return;
+    }
+    
+    if (!S.responses.length) { 
+      alert('Нет данных для экспорта'); 
+      return; 
+    }
 
-  // Сводка
-  const sum=[['Подразделение','Кол-во ответов','Средний балл',...CRITERIA]];
-  depts.forEach(d=>{
-    const byQ=CRITERIA.map((_,qi)=>{
-      const sc=S.responses.flatMap(r=>{const da=r.answers[d];if(!da||!da[qi]||da[qi].score===0)return[];return[da[qi].score];});
-      return sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length):null;
-    });
-    const vals=byQ.filter(v=>v!==null);
-    const avg=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null;
-    sum.push([d,S.responses.filter(r=>r.answers[d]).length,avg?+avg.toFixed(2):'',...byQ.map(v=>v?+v.toFixed(2):'')]);
-  });
-  const ws1=XLSX.utils.aoa_to_sheet(sum);
-  ws1['!cols']=[{wch:45},{wch:16},{wch:14},...CRITERIA.map(()=>({wch:22}))];
-  XLSX.utils.book_append_sheet(wb,ws1,'Сводка');
+    const wb = XLSX.utils.book_new();
+    const depts = [...new Set(S.responses.flatMap(r => Object.keys(r.answers || {})))].sort();
 
-  // Пожелания (5-й вопрос)
-  const com=[['Подразделение','Комментарий','Дата']];
-  S.responses.forEach(r=>{
-    Object.keys(r.answers||{}).forEach(d=>{
-      const a = r.answers[d][4]; // Индекс 4 для 5-го вопроса
-      if(a && a.text) com.push([d, a.text, r.created_at?r.created_at.slice(0,10):'']);
-    });
-  });
-  const ws2=XLSX.utils.aoa_to_sheet(com);
-  ws2['!cols']=[{wch:45},{wch:60},{wch:12}];
-  XLSX.utils.book_append_sheet(wb,ws2,'Пожелания');
+    // 🔧 Вспомогательная функция: уникальное имя листа для Excel
+    const usedNames = new Set();
+    function makeUniqueSheetName(baseName) {
+      let safe = baseName.replace(/[\[\]:*?\/\\]/g, '_').trim();
+      safe = safe.substring(0, 31); // лимит Excel
+      let final = safe;
+      let counter = 1;
+      while (usedNames.has(final)) {
+        const suffix = `_${counter}`;
+        final = safe.substring(0, 31 - suffix.length) + suffix;
+        counter++;
+      }
+      usedNames.add(final);
+      return final;
+    }
 
-  // Детализация по отделам
-  depts.forEach(d=>{
-    const rows=[['Вопрос','Ответ','Дата']];
-    S.responses.forEach(r=>{
-      const da=r.answers[d]; if(!da)return;
-      CRITERIA.forEach((c,qi)=>{ 
-        const a=da[qi]; 
-        if(!a)return; 
-        rows.push([c, a.score===0?'Не взаимодействую':a.score, r.created_at?r.created_at.slice(0,10):'']); 
+    // === Лист "Сводка" ===
+    const sum = [['Подразделение','Кол-во ответов','Средний балл',...CRITERIA]];
+    depts.forEach(d => {
+      const byQ = CRITERIA.map((_,qi) => {
+        const sc = S.responses.flatMap(r => {
+          const da = r.answers[d];
+          if(!da || !da[qi] || da[qi].score === 0) return [];
+          return [da[qi].score];
+        });
+        return sc.length ? (sc.reduce((a,b)=>a+b,0)/sc.length) : null;
       });
-      // Добавляем 5-й вопрос
-      if(da[4] && da[4].text) {
-        rows.push(['Пожелания и рекомендации', da[4].text, r.created_at?r.created_at.slice(0,10):'']);
+      const vals = byQ.filter(v => v !== null);
+      const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+      sum.push([d, S.responses.filter(r=>r.answers[d]).length, avg ? +avg.toFixed(2) : '', ...byQ.map(v => v ? +v.toFixed(2) : '')]);
+    });
+    const ws1 = XLSX.utils.aoa_to_sheet(sum);
+    ws1['!cols'] = [{wch:45},{wch:16},{wch:14},...CRITERIA.map(()=>({wch:22}))];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Сводка');
+    usedNames.add('Сводка');
+
+    // === Лист "Пожелания" ===
+    const com = [['Подразделение','Комментарий','Дата']];
+    S.responses.forEach(r => {
+      Object.keys(r.answers||{}).forEach(d => {
+        const a = r.answers[d]?.[4];
+        if(a && a.text) com.push([d, a.text, r.created_at ? r.created_at.slice(0,10) : '']);
+      });
+    });
+    const ws2 = XLSX.utils.aoa_to_sheet(com);
+    ws2['!cols'] = [{wch:45},{wch:60},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Пожелания');
+    usedNames.add('Пожелания');
+
+    // === Детализация по отделам ===
+    depts.forEach(d => {
+      const rows = [['Вопрос','Ответ','Дата']];
+      S.responses.forEach(r => {
+        const da = r.answers[d]; 
+        if(!da) return;
+        CRITERIA.forEach((c,qi) => { 
+          const a = da[qi]; 
+          if(!a) return; 
+          rows.push([c, a.score===0 ? 'Не взаимодействую' : a.score, r.created_at ? r.created_at.slice(0,10) : '']); 
+        });
+        if(da[4] && da[4].text) {
+          rows.push(['Пожелания и рекомендации', da[4].text, r.created_at ? r.created_at.slice(0,10) : '']);
+        }
+      });
+      if (rows.length > 1) {
+        const sheetName = makeUniqueSheetName(d); // 🔧 Уникальное имя!
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{wch:50},{wch:60},{wch:12}];
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }
     });
-    if (rows.length>1) {
-      const ws=XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols']=[{wch:50},{wch:60},{wch:12}];
-      XLSX.utils.book_append_sheet(wb,ws,d.length>31?d.substring(0,31):d);
-    }
-  });
 
-  XLSX.writeFile(wb,`КПЭ_опрос_${new Date().toISOString().slice(0,10)}.xlsx`);
+    const filename = `КПЭ_опрос_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    alert('✅ Файл успешно сформирован!');
+    
+  } catch(e) {
+    console.error('Ошибка экспорта:', e);
+    alert('❌ Ошибка: ' + e.message + '\n\nДетали в консоли (F12)');
+  }
 };
 
 load().then(render);
