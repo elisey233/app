@@ -60,16 +60,20 @@ details[open] summary{color:#1a1a18}
 <body>
 <div class="shell"><div id="app">Загрузка...</div></div>
 <script>
+// ═══════════════════════════════════════════════
+//  НАСТРОЙКИ — ВСТАВЬТЕ ВАШИ ДАННЫЕ SUPABASE
+// ═══════════════════════════════════════════════
 const SUPABASE_URL = 'https://cvaeztimgfdllcwbzxmk.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_2ugrqwNDSugXvGY8T3Dthw_0mWvg60u';
 const ADMIN_PASS = 'steel2024';
-const CURRENT_PERIOD = '2026-Q2';
+// ═══════════════════════════════════════════════
 
 const CONFIGURED = SUPABASE_URL !== '';
 
 const DEPTS = ['Отдел маркетинга и рекламы','Контакт-центр','Технический отдел','Отдел экспортных продаж','Группа сопровождения сделок','Отдел по работе с дилерской сетью по ЦФО','Отдел по работе с дилерской сетью по Уральскому ФО','Отдел по работе с дилерской сетью по СЗФО','Отдел по работе с дилерской сетью по ПФО','Отдел по работе с дилерской сетью по ЮФО','Отдел по работе с дилерской сетью Москвы и МО','Отдел труда и заработной платы','Административно-хозяйственный отдел','Бухгалтерия','Финансово-экономический отдел','Отдел автоматизации','АУП','ПСК','Склад','Заготовительный участок','Участок профилирования','Опытно-производственный участок','Участок окраски','Участок упаковки','Участок кровли','Служба диспетчеризации','Прессовый участок','Юридический отдел','Отдел обучения и технического развития','Информационно-техническая служба','Отдел комплектации и поставок','Отдел охраны труда и экологии','Служба эксплуатации и транспорта','Обособленное подразделение в г. Санкт-Петербург (склад)','Обособленное подразделение в г. Краснодар (склад)','Обособленное подразделение в г. Екатеринбург (склад)','Департамент главного инженера','Департамент главного бухгалтера','Департамент заместителя генерального директора'];
 const CRITERIA = ['Отзывчивость, доброжелательность, радушие','Качество оказания услуг коллегам','Оказание помощи смежным подразделениям при решении задач','Оперативность оказания услуг коллегам'];
 
+// ── Supabase helpers ──────────────────────────────────────────────
 const headers = () => ({'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY});
 
 async function sbGet(table, filters='') {
@@ -90,6 +94,7 @@ async function sbDeleteAll(table) {
   if (!r.ok) throw new Error(await r.text());
 }
 
+// ── State ────────────────────────────────────────────────────────
 let S = {
   tab:'survey', adminAuth:false,
   groups:[], responses:[], loading:true,
@@ -99,14 +104,16 @@ let S = {
   resultDept:'', deptFilter:'', resultLoading:false
 };
 
-const doneKey = (code, period) => 'sv_done_'+code+'_'+period;
-const markDone = (code, period) => { try{ localStorage.setItem(doneKey(code, period),'1'); }catch(e){} };
-const isDone = (code, period) => { try{ return !!localStorage.getItem(doneKey(code, period)); }catch(e){ return false; } };
+// Блокировка повтора — localStorage (на устройство, без логина)
+const doneKey = code => 'sv_done_'+code;
+const markDone = code => { try{ localStorage.setItem(doneKey(code),'1'); }catch(e){} };
+const isDone = code => { try{ return !!localStorage.getItem(doneKey(code)); }catch(e){ return false; } };
 
 function genCode() { const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; for(let i=0;i<5;i++) c+=ch[Math.floor(Math.random()*ch.length)]; return c; }
 const esc = s => s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-const countResp = code => S.responses.filter(r=>r.group_code===code && r.period===CURRENT_PERIOD).length;
+const countResp = code => S.responses.filter(r=>r.group_code===code).length;
 
+// ── Load ──────────────────────────────────────────────────────────
 async function load() {
   if (!CONFIGURED) { S.loading = false; render(); return; }
   try { S.groups = await sbGet('sv_groups'); } catch(e) { console.error(e); }
@@ -120,6 +127,7 @@ async function loadResponses() {
   S.resultLoading = false; render();
 }
 
+// ── Render ────────────────────────────────────────────────────────
 function render() {
   document.getElementById('app').innerHTML = buildHtml();
 }
@@ -129,7 +137,7 @@ function buildHtml() {
   if (S.loading) return `<div style="padding:3rem;text-align:center;color:#888780"><span class="spinner"></span>Загрузка...</div>`;
   return `
     <div style="margin-bottom:1rem">
-      <div class="muted" style="margin-bottom:4px">ООО «СТИЛ ТЕХНОЛОДЖИ» · Оценка за период ${CURRENT_PERIOD}</div>
+      <div class="muted" style="margin-bottom:4px">ООО «СТИЛ ТЕХНОЛОДЖИ» · Оценка за 1 квартал</div>
       <div style="font-size:22px;font-weight:500">Опрос компетенций подразделений</div>
     </div>
     <div class="tabs">
@@ -143,6 +151,7 @@ function buildHtml() {
 
 function mkTab(id,label) { return `<button class="tab${S.tab===id?' active':''}" onclick="setTab('${id}')">${label}</button>`; }
 
+// ── Setup screen ──────────────────────────────────────────────────
 function renderSetup() {
   return `
   <div style="margin-bottom:1.5rem">
@@ -157,7 +166,7 @@ function renderSetup() {
       <div class="step-num">1</div>
       <div>
         <div style="font-weight:500;font-size:14px;margin-bottom:4px">Создайте аккаунт Supabase</div>
-        <div class="muted">Зайдите на <a href="https://supabase.com" target="_blank" style="color:#185fa5">supabase.com</a> → Sign up</div>
+        <div class="muted">Зайдите на <a href="https://supabase.com" target="_blank" style="color:#185fa5">supabase.com</a> → Sign up (бесплатно, через GitHub или email)</div>
       </div>
     </div>
 
@@ -174,7 +183,7 @@ function renderSetup() {
       <div>
         <div style="font-weight:500;font-size:14px;margin-bottom:6px">Создайте таблицы</div>
         <div class="muted" style="margin-bottom:8px">Перейдите в <b>SQL Editor</b> → New query → вставьте этот код и нажмите Run:</div>
-        <textarea onclick="this.select()" readonly style="font-family:monospace;font-size:12px;height:220px;background:#f4f4f1;color:#1a1a18">create table sv_groups (
+        <textarea onclick="this.select()" readonly style="font-family:monospace;font-size:12px;height:200px;background:#f4f4f1;color:#1a1a18">create table sv_groups (
   id bigserial primary key,
   code text unique not null,
   name text not null,
@@ -186,7 +195,6 @@ create table sv_responses (
   id bigserial primary key,
   group_code text not null,
   group_name text,
-  period text not null,
   answers jsonb not null,
   created_at timestamptz default now()
 );
@@ -206,9 +214,23 @@ create policy "allow all" on sv_responses for all using (true) with check (true)
         <div class="muted">Settings → API → скопируйте <b>Project URL</b> и <b>anon public key</b></div>
       </div>
     </div>
+
+    <div class="setup-step">
+      <div class="step-num">5</div>
+      <div>
+        <div style="font-weight:500;font-size:14px;margin-bottom:4px">Вставьте в файл и разместите на GitHub Pages</div>
+        <div class="muted">Откройте <span class="code-inline">survey_final.html</span> в любом текстовом редакторе, найдите строки в начале файла и замените:</div>
+        <div style="background:#f4f4f1;border-radius:8px;padding:10px;margin-top:8px;font-family:monospace;font-size:12px;color:#1a1a18;line-height:1.8">
+          const SUPABASE_URL = '<span style="color:#a32d2d">ВАШ_URL</span>';<br>
+          const SUPABASE_ANON_KEY = '<span style="color:#a32d2d">ВАШ_КЛЮЧ</span>';
+        </div>
+        <div class="muted" style="margin-top:10px">Затем зайдите на <a href="https://github.com" target="_blank" style="color:#185fa5">github.com</a> → New repository → загрузите файл → Settings → Pages → Source: main → /root. Ссылка вида <span class="code-inline">username.github.io/repo/survey_final.html</span></div>
+      </div>
+    </div>
   </div>`;
 }
 
+// ── Survey ────────────────────────────────────────────────────────
 function renderSurvey() {
   if (S.step===0) return renderCode();
   if (S.step===1) return renderQs();
@@ -216,18 +238,18 @@ function renderSurvey() {
 }
 
 function renderCode() {
-  const already = isDone(S.code.trim().toUpperCase(), CURRENT_PERIOD);
+  const already = isDone(S.code.trim().toUpperCase());
   return `
   <div class="card">
     <div class="h1">Введите код группы</div>
-    <div class="muted" style="margin-bottom:1rem">Код выдаёт организатор опроса · Период: ${CURRENT_PERIOD}</div>
+    <div class="muted" style="margin-bottom:1rem">Код выдаёт организатор опроса</div>
     ${S.surveyMsg ? `<div class="alert alert-err">${S.surveyMsg}</div>` : ''}
     <div class="field">
       <input type="text" placeholder="Например: AB3K7" maxlength="6"
         value="${S.code}" style="font-size:20px;letter-spacing:3px;font-family:monospace;text-transform:uppercase"
         oninput="S.code=this.value.toUpperCase();render()" onkeydown="if(event.key==='Enter')submitCode()">
     </div>
-    ${already ? `<div class="alert alert-warn">Вы уже прошли опрос с этим кодом в периоде ${CURRENT_PERIOD}. Повторное прохождение ограничено.</div>` : ''}
+    ${already ? `<div class="alert alert-warn">Вы уже прошли опрос с этим кодом. Повторное прохождение ограничено.</div>` : ''}
     <button class="btn-primary" onclick="submitCode()" style="width:100%" ${already?'disabled':''}>Продолжить →</button>
   </div>
   <div class="info-notice">
@@ -239,6 +261,8 @@ function renderCode() {
 function renderQs() {
   const g=S.currentGroup, total=g.depts.length, di=S.deptIdx, dept=g.depts[di];
   const pct=Math.round(di/total*100);
+  
+  // Проверка заполненности 5-го вопроса (индекс 4)
   const feedbackAnswer = (S.answers[dept]||{})[4];
   
   return `
@@ -249,7 +273,7 @@ function renderQs() {
   <div class="progress"><div class="progress-fill" style="width:${pct}%"></div></div>
   ${S.surveyMsg ? `<div class="alert alert-err">${S.surveyMsg}</div>` : ''}
   <div class="card">
-    <div class="badge badge-anon" style="margin-bottom:0.75rem;font-size:11px">🔒 Анонимно · ${CURRENT_PERIOD}</div>
+    <div class="badge badge-anon" style="margin-bottom:0.75rem;font-size:11px">🔒 Анонимно</div>
     <div class="h2" style="margin-bottom:1.25rem">Оцените отдел: <span style="color:#533ab7">${dept}</span></div>
     
     ${CRITERIA.map((c,qi) => {
@@ -288,15 +312,22 @@ function renderDone() {
   <div class="card" style="text-align:center;padding:2.5rem 2rem">
     <div style="width:64px;height:64px;background:#eaf3de;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:28px;color:#27500a">✓</div>
     <div style="font-size:22px;font-weight:500;margin-bottom:0.5rem">Спасибо за прохождение опроса!</div>
-    <div style="font-size:15px;color:#5f5e5a;margin-bottom:0.25rem">Ваши ответы успешно сохранены и будут учтены при формировании оценки КПЭ за период ${CURRENT_PERIOD}.</div>
+    <div style="font-size:15px;color:#5f5e5a;margin-bottom:0.25rem">Ваши ответы успешно сохранены и будут учтены при формировании оценки КПЭ за 1 квартал.</div>
     <div style="font-size:13px;color:#888780;margin-bottom:1.75rem">Вы оценили ${g?g.depts.length:0} подразделений</div>
     <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
       <span class="badge badge-anon">🔒 Ответы анонимны</span>
       <span class="badge badge-blue">Повторное прохождение недоступно</span>
     </div>
+  </div>
+  <div class="card">
+    <div style="font-size:13px;color:#5f5e5a;line-height:1.6">
+      Результаты опроса будут обработаны и отражены в картах КПЭ сотрудников.<br>
+      Если у вас есть вопросы — обратитесь к организатору опроса.
+    </div>
   </div>`;
 }
 
+// ── Results ───────────────────────────────────────────────────────
 function renderResults() {
   if (S.resultLoading) return `<div style="padding:2rem;text-align:center;color:#888780"><span class="spinner"></span>Загрузка ответов...</div>`;
 
@@ -307,36 +338,35 @@ function renderResults() {
       <button onclick="loadResponses()">Обновить</button>
     </div>`;
 
-  const currentResponses = S.responses.filter(r => r.period === CURRENT_PERIOD);
-
   const stats = depts.map(d => {
     const byQ = CRITERIA.map((_,qi) => {
-      const sc = currentResponses.flatMap(r => {
+      const sc = S.responses.flatMap(r => {
         const da=r.answers[d]; if(!da||!da[qi]||da[qi].score===0) return []; return [da[qi].score];
       });
-      const na = currentResponses.filter(r=>r.answers[d]&&r.answers[d][qi]&&r.answers[d][qi].score===0).length;
+      const na = S.responses.filter(r=>r.answers[d]&&r.answers[d][qi]&&r.answers[d][qi].score===0).length;
       return {avg:sc.length?(sc.reduce((a,b)=>a+b,0)/sc.length):null, count:sc.length, na};
     });
     const vals = byQ.map(q=>q.avg).filter(v=>v!==null);
-    return {d, avg:vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null, count:currentResponses.filter(r=>r.answers[d]).length, byQ};
+    return {d, avg:vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length):null, count:S.responses.filter(r=>r.answers[d]).length, byQ};
   });
 
   const sel = S.resultDept;
   let detail = '';
   if (sel) {
     const ds = stats.find(x=>x.d===sel);
-    const comments = currentResponses.flatMap(r=>{
+    // Собираем комментарии только из 5-го вопроса (индекс 4)
+    const comments = S.responses.flatMap(r=>{
       const da=r.answers[sel]; 
       if(!da) return [];
-      if(da[4] && da[4].text) return [{q:4, text: da[4].text, period: r.period}];
+      if(da[4] && da[4].text) return [{q:4, text: da[4].text}];
       return [];
     });
     
     detail = `
     <div class="card" style="margin-top:1rem">
       <div class="h2">${sel}</div>
-      <div class="muted" style="margin-bottom:1rem">Ответов за ${CURRENT_PERIOD}: ${ds ? ds.count : 0}</div>
-      ${ds ? CRITERIA.map((c,qi) => {
+      <div class="muted" style="margin-bottom:1rem">Ответов: ${ds.count}</div>
+      ${CRITERIA.map((c,qi) => {
         const q=ds.byQ[qi];
         return `<div class="stat-row">
           <div style="flex:1;padding-right:12px">
@@ -345,14 +375,14 @@ function renderResults() {
           </div>
           <div style="text-align:right;flex-shrink:0">
             <div style="font-size:18px;font-weight:500">${q.avg?q.avg.toFixed(2):'—'}</div>
+            ${q.avg?`<div style="display:flex;gap:3px;justify-content:flex-end;margin-top:3px">${[1,2,3,4,5].map(n=>`<span style="display:inline-block;height:8px;border-radius:2px;background:#1a1a18;width:${n<=Math.round(q.avg)?14:4}px;opacity:${n<=Math.round(q.avg)?1:0.2}"></span>`).join('')}</div>`:''}
           </div>
         </div>`;
-      }).join('') : ''}
+      }).join('')}
       ${comments.length?`
         <div class="sep"></div>
         <div class="h2">Пожелания и рекомендации</div>
         ${comments.map(c=>`<div style="padding:8px 0;border-bottom:0.5px solid #d3d1c7">
-          <div class="muted">${c.period}</div>
           <div style="font-size:14px;margin-top:4px">${c.text}</div>
         </div>`).join('')}`:''}
     </div>`;
@@ -363,7 +393,7 @@ function renderResults() {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
       <div>
         <div class="h2" style="margin-bottom:2px">Сводка по подразделениям</div>
-        <div class="muted">Период: ${CURRENT_PERIOD} · Всего ответов: ${currentResponses.length}</div>
+        <div class="muted">Всего ответов: ${S.responses.length}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-sm" onclick="loadResponses()">↻ Обновить</button>
@@ -386,6 +416,7 @@ function renderResults() {
   ${S.responses.length?`<div style="margin-top:0.5rem;text-align:right"><button class="btn-sm btn-danger" onclick="if(confirm('Удалить ВСЕ ответы?')){clearResp()}">Очистить все ответы</button></div>`:''}`;
 }
 
+// ── Admin ─────────────────────────────────────────────────────────
 function renderAdmin() {
   if (!S.adminAuth) return `
   <div class="card">
@@ -401,7 +432,7 @@ function renderAdmin() {
   ${S.adminMsg ? `<div class="alert alert-ok">${S.adminMsg}</div>` : ''}
   <div class="card">
     <div class="h2">Создать группу голосующих</div>
-    <div class="muted" style="margin-bottom:1rem">Период опроса: ${CURRENT_PERIOD}</div>
+    <div class="muted" style="margin-bottom:1rem">Группа — набор отделов для оценки. Участники группы получают один код и проходят опрос анонимно.</div>
     <div class="field">
       <label>Название группы</label>
       <input type="text" id="newGroupName" value="${S.newGroupName}" placeholder="Например: Продажи оценивают поддержку">
@@ -429,17 +460,25 @@ function renderAdmin() {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
           <div>
             <div style="font-weight:500;font-size:15px">${g.name}</div>
-            <div class="muted">${g.depts.length} подразд. · ${countResp(g.code)} ответов в ${CURRENT_PERIOD}</div>
+            <div class="muted">${g.depts.length} подразд. · ${countResp(g.code)} ответов</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center">
             <div class="code-box" onclick="copyCode('${g.code}')" title="Нажмите чтобы скопировать">${g.code}</div>
             <button class="btn-sm btn-danger" onclick="delGroup(${g.id})">✕</button>
           </div>
         </div>
+        <details style="margin-top:8px">
+          <summary>Отделы (${g.depts.length})</summary>
+          <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${g.depts.map(d=>`<span class="badge badge-blue">${d}</span>`).join('')}</div>
+        </details>
       </div>`).join('')}
+  </div>
+  <div style="text-align:right;margin-top:0.5rem">
+    <button class="btn-sm" onclick="S.adminAuth=false;if(S.tab==='results')S.tab='survey';render()">Выйти</button>
   </div>`;
 }
 
+// ── Actions ───────────────────────────────────────────────────────
 window.setTab = function(t) {
   if (t==='results' && !S.adminAuth) { S.tab='admin'; render(); return; }
   S.tab=t;
@@ -449,7 +488,7 @@ window.setTab = function(t) {
 
 window.submitCode = function() {
   const code = S.code.trim().toUpperCase();
-  if (isDone(code, CURRENT_PERIOD)) { S.surveyMsg='Вы уже прошли этот опрос'; render(); return; }
+  if (isDone(code)) { S.surveyMsg='Вы уже прошли этот опрос'; render(); return; }
   const g = S.groups.find(x=>x.code===code);
   if (!g) { S.surveyMsg='Группа с таким кодом не найдена'; render(); return; }
   S.surveyMsg=''; S.currentGroup=g; S.deptIdx=0; S.answers={}; S.step=1; render();
@@ -467,37 +506,44 @@ window.setText = function(dept,qi,text) {
 };
 window.nextDept = function() {
   const d=S.currentGroup.depts[S.deptIdx];
+  
+  // Проверка вопросов 1-4
   for (let qi=0;qi<CRITERIA.length;qi++) {
     const a=(S.answers[d]||{})[qi];
     if (!a||a.score===null) { S.surveyMsg=`Ответьте на вопрос ${qi+1}`; render(); return; }
   }
+  // Проверка вопроса 5
   const feedback = (S.answers[d]||{})[4];
   if (!feedback || !feedback.text || !feedback.text.trim()) { 
     S.surveyMsg='Заполните поле "Пожелания и рекомендации"'; render(); return; 
   }
+  
   S.surveyMsg=''; S.deptIdx++; render(); window.scrollTo(0,0);
 };
 window.prevDept = function() { S.deptIdx--; render(); window.scrollTo(0,0); };
 
 window.submitSurvey = async function() {
   const d=S.currentGroup.depts[S.deptIdx];
+  
+  // Проверка вопросов 1-4
   for (let qi=0;qi<CRITERIA.length;qi++) {
     const a=(S.answers[d]||{})[qi];
     if (!a||a.score===null) { S.surveyMsg=`Ответьте на вопрос ${qi+1}`; render(); return; }
   }
+  // Проверка вопроса 5
   const feedback = (S.answers[d]||{})[4];
   if (!feedback || !feedback.text || !feedback.text.trim()) { 
     S.surveyMsg='Заполните поле "Пожелания и рекомендации"'; render(); return; 
   }
+  
   S.saving=true; render();
   try {
     await sbInsert('sv_responses', {
       group_code: S.currentGroup.code,
       group_name: S.currentGroup.name,
-      period: CURRENT_PERIOD,
       answers: S.answers
     });
-    markDone(S.currentGroup.code, CURRENT_PERIOD);
+    markDone(S.currentGroup.code);
     S.saving=false; S.step=2; render();
   } catch(e) {
     S.saving=false;
@@ -507,18 +553,22 @@ window.submitSurvey = async function() {
 };
 
 window.selectDept = d => { S.resultDept=S.resultDept===d?'':d; render(); };
+
 window.clearResp = async function() {
   try { await sbDeleteAll('sv_responses'); S.responses=[]; render(); } catch(e) { alert('Ошибка: '+e.message); }
 };
+
 window.checkPass = function() {
   const p=document.getElementById('passInput').value;
   if (p===ADMIN_PASS) { S.adminAuth=true; S.adminErr=''; S.tab='admin'; render(); }
   else { S.adminErr='Неверный пароль'; render(); }
 };
+
 window.toggleDept = d => {
   const i=S.newGroupDepts.indexOf(d);
   if (i===-1) S.newGroupDepts.push(d); else S.newGroupDepts.splice(i,1); render();
 };
+
 window.createGroup = async function() {
   const name=document.getElementById('newGroupName').value.trim();
   if (!name) { alert('Введите название'); return; }
@@ -531,6 +581,7 @@ window.createGroup = async function() {
     S.newGroupName=''; S.newGroupDepts=[]; S.deptFilter=''; render();
   } catch(e) { alert('Ошибка: '+e.message); }
 };
+
 window.delGroup = async function(id) {
   if (!confirm('Удалить группу?')) return;
   try {
@@ -538,16 +589,20 @@ window.delGroup = async function(id) {
     S.groups = S.groups.filter(g=>g.id!==id); render();
   } catch(e) { alert('Ошибка: '+e.message); }
 };
+
 window.copyCode = function(code) {
   navigator.clipboard.writeText(code).then(()=>{ S.adminMsg=`Код ${code} скопирован`; render(); });
 };
 
 window.exportExcel = function() {
   try {
+    // Проверка наличия библиотеки
     if (typeof XLSX === 'undefined') {
       alert('Ошибка: библиотека XLSX не загружена. Проверьте подключение к интернету.');
+      console.error('XLSX library not loaded');
       return;
     }
+    
     if (!S.responses.length) { 
       alert('Нет данных для экспорта'); 
       return; 
@@ -555,13 +610,12 @@ window.exportExcel = function() {
 
     const wb = XLSX.utils.book_new();
     const depts = [...new Set(S.responses.flatMap(r => Object.keys(r.answers || {})))].sort();
-    const currentResponses = S.responses.filter(r => r.period === CURRENT_PERIOD);
-    const periods = [...new Set(S.responses.map(r => r.period).filter(Boolean))].sort();
 
+    // 🔧 Вспомогательная функция: уникальное имя листа для Excel
     const usedNames = new Set();
     function makeUniqueSheetName(baseName) {
       let safe = baseName.replace(/[\[\]:*?\/\\]/g, '_').trim();
-      safe = safe.substring(0, 31);
+      safe = safe.substring(0, 31); // лимит Excel
       let final = safe;
       let counter = 1;
       while (usedNames.has(final)) {
@@ -573,10 +627,11 @@ window.exportExcel = function() {
       return final;
     }
 
+    // === Лист "Сводка" ===
     const sum = [['Подразделение','Кол-во ответов','Средний балл',...CRITERIA]];
     depts.forEach(d => {
       const byQ = CRITERIA.map((_,qi) => {
-        const sc = currentResponses.flatMap(r => {
+        const sc = S.responses.flatMap(r => {
           const da = r.answers[d];
           if(!da || !da[qi] || da[qi].score === 0) return [];
           return [da[qi].score];
@@ -585,74 +640,53 @@ window.exportExcel = function() {
       });
       const vals = byQ.filter(v => v !== null);
       const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null;
-      sum.push([d, currentResponses.filter(r=>r.answers[d]).length, avg ? +avg.toFixed(2) : '', ...byQ.map(v => v ? +v.toFixed(2) : '')]);
+      sum.push([d, S.responses.filter(r=>r.answers[d]).length, avg ? +avg.toFixed(2) : '', ...byQ.map(v => v ? +v.toFixed(2) : '')]);
     });
     const ws1 = XLSX.utils.aoa_to_sheet(sum);
     ws1['!cols'] = [{wch:45},{wch:16},{wch:14},...CRITERIA.map(()=>({wch:22}))];
     XLSX.utils.book_append_sheet(wb, ws1, 'Сводка');
     usedNames.add('Сводка');
 
-    const dyn = [['Подразделение', ...periods, 'Изменение']];
-    depts.forEach(d => {
-      const periodValues = periods.map(period => {
-        const resp = S.responses.filter(r => r.period === period && r.answers[d]);
-        const byRespAvg = resp.map(r => {
-          const da = r.answers[d];
-          const scores = CRITERIA.map((_, qi) => da?.[qi]?.score)
-            .filter(v => v !== null && v !== undefined && v !== 0);
-          if (!scores.length) return null;
-          return scores.reduce((a, b) => a + b, 0) / scores.length;
-        }).filter(v => v !== null);
-        if (!byRespAvg.length) return '';
-        return +(byRespAvg.reduce((a, b) => a + b, 0) / byRespAvg.length).toFixed(2);
-      });
-      let diff = '';
-      const nums = periodValues.filter(v => typeof v === 'number');
-      if (nums.length >= 2) diff = +(nums[nums.length - 1] - nums[nums.length - 2]).toFixed(2);
-      dyn.push([d, ...periodValues, diff]);
-    });
-    const wsDyn = XLSX.utils.aoa_to_sheet(dyn);
-    wsDyn['!cols'] = [{wch:45}, ...periods.map(() => ({wch:12})), {wch:12}];
-    XLSX.utils.book_append_sheet(wb, wsDyn, 'Динамика');
-    usedNames.add('Динамика');
-
-    const com = [['Подразделение','Период','Комментарий','Дата']];
+    // === Лист "Пожелания" ===
+    const com = [['Подразделение','Комментарий','Дата']];
     S.responses.forEach(r => {
       Object.keys(r.answers||{}).forEach(d => {
         const a = r.answers[d]?.[4];
-        if(a && a.text) com.push([d, r.period || '', a.text, r.created_at ? r.created_at.slice(0,10) : '']);
+        if(a && a.text) com.push([d, a.text, r.created_at ? r.created_at.slice(0,10) : '']);
       });
     });
     const ws2 = XLSX.utils.aoa_to_sheet(com);
-    ws2['!cols'] = [{wch:45},{wch:14},{wch:60},{wch:12}];
+    ws2['!cols'] = [{wch:45},{wch:60},{wch:12}];
     XLSX.utils.book_append_sheet(wb, ws2, 'Пожелания');
     usedNames.add('Пожелания');
 
+    // === Детализация по отделам ===
     depts.forEach(d => {
-      const rows = [['Период','Вопрос','Ответ','Дата']];
+      const rows = [['Вопрос','Ответ','Дата']];
       S.responses.forEach(r => {
         const da = r.answers[d]; 
         if(!da) return;
         CRITERIA.forEach((c,qi) => { 
           const a = da[qi]; 
           if(!a) return; 
-          rows.push([r.period || '', c, a.score===0 ? 'Не взаимодействую' : a.score, r.created_at ? r.created_at.slice(0,10) : '']); 
+          rows.push([c, a.score===0 ? 'Не взаимодействую' : a.score, r.created_at ? r.created_at.slice(0,10) : '']); 
         });
         if(da[4] && da[4].text) {
-          rows.push([r.period || '', 'Пожелания и рекомендации', da[4].text, r.created_at ? r.created_at.slice(0,10) : '']);
+          rows.push(['Пожелания и рекомендации', da[4].text, r.created_at ? r.created_at.slice(0,10) : '']);
         }
       });
       if (rows.length > 1) {
-        const sheetName = makeUniqueSheetName(d);
+        const sheetName = makeUniqueSheetName(d); // 🔧 Уникальное имя!
         const ws = XLSX.utils.aoa_to_sheet(rows);
-        ws['!cols'] = [{wch:14},{wch:50},{wch:60},{wch:12}];
+        ws['!cols'] = [{wch:50},{wch:60},{wch:12}];
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }
     });
 
-    const filename = `КПЭ_опрос_${CURRENT_PERIOD}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const filename = `КПЭ_опрос_${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(wb, filename);
     alert('✅ Файл успешно сформирован!');
+    
   } catch(e) {
     console.error('Ошибка экспорта:', e);
     alert('❌ Ошибка: ' + e.message + '\n\nДетали в консоли (F12)');
