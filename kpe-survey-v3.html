@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Опрос КПЭ — периоды и история</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
   <style>
     :root{--bg:#f7f6f2;--surface:#ffffff;--surface2:#f3f0ec;--text:#28251d;--muted:#7a7974;--border:#d4d1ca;--primary:#1a1a18;--success:#437a22;--danger:#a12c7b;--shadow:0 8px 24px rgba(22,20,16,.06)}
     *{box-sizing:border-box;margin:0;padding:0}
@@ -162,10 +162,174 @@ function getActivePeriod(){ return S.periods.find(x=>x.is_active) || null; }
 function getPeriodById(id){ return S.periods.find(p=>Number(p.id)===Number(id)) || null; }
 
 function sortPeriods(ps){
-  return [...ps].sort((a,b)=>
-    String(a.date_from||'').localeCompare(String(b.date_from||'')) ||
-    Number(a.id)-Number(b.id)
-  );
+  return [...ps].sort((a,b)=>{
+    const da=a.date_from||'', db=b.date_from||'';
+    if(da&&db&&da!==db) return da<db?-1:1;
+    if(da&&!db) return -1;
+    if(!da&&db) return 1;
+    const ca=String(a.code||''), cb=String(b.code||'');
+    if(ca!==cb) return ca<cb?-1:1;
+    return Number(a.id)-Number(b.id);
+  });
+}
+
+// --- Нормализация ответов: старые данные хранят ключи по НАЗВАНИЮ отдела,
+//     новые — по числовому id. Приводим всё к id, чтобы читалось одинаково. ---
+function deptIdByName(name){
+  if(name==null) return null;
+  let d=S.departments.find(x=>x.name===name);
+  if(d) return d.id;
+  const t=String(name).trim().toLowerCase();
+  d=S.departments.find(x=>String(x.name).trim().toLowerCase()===t);
+  return d?d.id:null;
+}
+
+function normalizeAnswers(answers){
+  if(!answers || typeof answers!=='object') return {};
+  const out={};
+  Object.keys(answers).forEach(k=>{
+    let id=null;
+    if(/^\d+$/.test(String(k))) id=Number(k);
+    else { const r=deptIdByName(k); if(r!=null) id=Number(r); }
+    const key=(id!=null)?String(id):String(k);
+    out[key]=answers[k];
+  });
+  return out;
+}
+
+function deptDisplayName(key){
+  const d=S.departments.find(x=>String(x.id)===String(key));
+  return d?d.name:String(key);
+}
+
+function periodsWithData(){
+  const ids=new Set(S.responses.map(r=>Number(r.period_id)));
+  return sortPeriods(S.periods).filter(p=>ids.has(Number(p.id)));
+}
+
+// Умно выбираем период для результатов и период для сравнения (предыдущий с данными)
+function pickDefaultResultPeriods(){
+  const curHasData = S.resultPeriodId && S.responses.some(r=>Number(r.period_id)===Number(S.resultPeriodId));
+  if(!curHasData){
+    const withData=periodsWithData();
+    const active=getActivePeriod();
+    const activeHasData = active && S.responses.some(r=>Number(r.period_id)===Number(active.id));
+    const cur = activeHasData ? active : (withData.length?withData[withData.length-1]:active);
+    if(cur) S.resultPeriodId=String(cur.id);
+  }
+  if(!S.comparePeriodId){
+    const all=sortPeriods(S.periods);
+    const idx=all.findIndex(p=>String(p.id)===String(S.resultPeriodId));
+    for(let i=idx-1;i>=0;i--){
+      if(S.responses.some(r=>Number(r.period_id)===Number(all[i].id))){ S.comparePeriodId=String(all[i].id); break; }
+    }
+  }
+}
+
+function downloadBlob(blob, filename){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+// --- Рисуем графики на canvas → PNG (для вставки в Excel) ---
+function _canvas(w,h){
+  const c=document.createElement('canvas');
+  c.width=w; c.height=h;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,w,h);
+  return {c,ctx};
+}
+
+function makeLineChartPNG(title, labels, values){
+  const W=860,H=380,padL=46,padR=24,padT=48,padB=54;
+  const {c,ctx}=_canvas(W,H);
+  ctx.fillStyle='#28251d'; ctx.font='bold 18px Arial'; ctx.textAlign='left';
+  ctx.fillText(title, padL, 28);
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  ctx.strokeStyle='#e5e2db'; ctx.lineWidth=1; ctx.fillStyle='#7a7974'; ctx.font='12px Arial';
+  for(let s=1;s<=5;s++){
+    const y=padT+plotH-((s-1)/4)*plotH;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.textAlign='right'; ctx.fillText(String(s), padL-8, y+4);
+  }
+  const n=labels.length;
+  const X=i=> n<=1? padL+plotW/2 : padL+(i/(n-1))*plotW;
+  const Y=v=> padT+plotH-((v-1)/4)*plotH;
+  ctx.strokeStyle='#1a1a18'; ctx.lineWidth=2.5; ctx.beginPath();
+  let started=false;
+  values.forEach((v,i)=>{ if(v==null) return; const px=X(i),py=Y(v); if(!started){ctx.moveTo(px,py);started=true;} else ctx.lineTo(px,py); });
+  ctx.stroke();
+  values.forEach((v,i)=>{ if(v==null) return; const px=X(i),py=Y(v);
+    ctx.fillStyle='#1a1a18'; ctx.beginPath(); ctx.arc(px,py,3.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#28251d'; ctx.font='bold 12px Arial'; ctx.textAlign='center'; ctx.fillText(v.toFixed(2), px, py-10);
+  });
+  ctx.fillStyle='#7a7974'; ctx.font='12px Arial'; ctx.textAlign='center';
+  labels.forEach((l,i)=>{ const t=l.length>16?l.slice(0,15)+'…':l; ctx.fillText(t, X(i), H-padB+22); });
+  return c.toDataURL('image/png');
+}
+
+function makeBarChartPNG(title, labels, curr, prev, labelCurr, labelPrev){
+  const n=labels.length;
+  const W=Math.max(860, n*78+120), H=440, padL=46,padR=24,padT=58,padB=110;
+  const {c,ctx}=_canvas(W,H);
+  ctx.fillStyle='#28251d'; ctx.font='bold 18px Arial'; ctx.textAlign='left';
+  ctx.fillText(title, padL, 28);
+  // легенда
+  ctx.fillStyle='#1a1a18'; ctx.fillRect(padL,38,14,14);
+  ctx.fillStyle='#28251d'; ctx.font='12px Arial'; ctx.fillText(labelCurr, padL+20, 50);
+  if(prev){ ctx.fillStyle='#c8a23a'; ctx.fillRect(padL+150,38,14,14); ctx.fillStyle='#28251d'; ctx.fillText(labelPrev, padL+170, 50); }
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  ctx.strokeStyle='#e5e2db'; ctx.fillStyle='#7a7974'; ctx.font='12px Arial';
+  for(let s=1;s<=5;s++){
+    const y=padT+plotH-((s-1)/4)*plotH;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.textAlign='right'; ctx.fillText(String(s), padL-8, y+4);
+  }
+  const slot=plotW/n;
+  const Y=v=> padT+plotH-((v-1)/4)*plotH;
+  labels.forEach((l,i)=>{
+    const cx=padL+slot*i+slot/2;
+    const bw=prev?Math.min(22,slot/3):Math.min(30,slot/2);
+    const cv=curr[i], pv=prev?prev[i]:null;
+    if(cv!=null){ const y=Y(cv); ctx.fillStyle='#1a1a18'; const x=prev?cx-bw-2:cx-bw/2; ctx.fillRect(x,y,bw,(padT+plotH)-y);
+      ctx.fillStyle='#28251d'; ctx.font='bold 11px Arial'; ctx.textAlign='center'; ctx.fillText(cv.toFixed(2), x+bw/2, y-4); }
+    if(pv!=null){ const y=Y(pv); ctx.fillStyle='#c8a23a'; const x=cx+2; ctx.fillRect(x,y,bw,(padT+plotH)-y);
+      ctx.fillStyle='#7a6a1f'; ctx.font='bold 11px Arial'; ctx.textAlign='center'; ctx.fillText(pv.toFixed(2), x+bw/2, y-4); }
+    // подпись отдела (повёрнута)
+    ctx.save(); ctx.translate(cx, padT+plotH+12); ctx.rotate(-Math.PI/4);
+    ctx.fillStyle='#5f5e5a'; ctx.font='11px Arial'; ctx.textAlign='right';
+    const t=l.length>22?l.slice(0,21)+'…':l; ctx.fillText(t,0,0); ctx.restore();
+  });
+  return c.toDataURL('image/png');
+}
+
+// --- Встроенный SVG-график «текущий vs предыдущий» по критериям (в карточке отдела) ---
+function renderCompareBarsSVG(curByQ, prevByQ){
+  const W=520,H=180,padL=8,padR=8,padT=10,padB=46;
+  const n=CRITERIA.length, plotH=H-padT-padB, slot=(W-padL-padR)/n;
+  const Y=v=> padT+plotH-((v-1)/4)*plotH;
+  let bars='';
+  for(let i=0;i<n;i++){
+    const cx=padL+slot*i+slot/2;
+    const cv=curByQ[i]&&curByQ[i].avg, pv=prevByQ?(prevByQ[i]&&prevByQ[i].avg):null;
+    const bw=prevByQ?14:20;
+    if(cv!=null){ const y=Y(cv); const x=prevByQ?cx-bw-1:cx-bw/2;
+      bars+=`<rect x="${x}" y="${y}" width="${bw}" height="${(padT+plotH)-y}" fill="#1a1a18"></rect>`+
+            `<text x="${x+bw/2}" y="${y-3}" font-size="10" text-anchor="middle" fill="#28251d">${cv.toFixed(2)}</text>`; }
+    if(pv!=null){ const y=Y(pv); const x=cx+1;
+      bars+=`<rect x="${x}" y="${y}" width="${bw}" height="${(padT+plotH)-y}" fill="#c8a23a"></rect>`+
+            `<text x="${x+bw/2}" y="${y-3}" font-size="10" text-anchor="middle" fill="#7a6a1f">${pv.toFixed(2)}</text>`; }
+    bars+=`<text x="${cx}" y="${padT+plotH+16}" font-size="11" text-anchor="middle" fill="#7a7974">К${i+1}</text>`;
+  }
+  let grid='';
+  for(let s=1;s<=5;s++){ const y=Y(s); grid+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#ece8e2"></line>`; }
+  const legend=`<rect x="${padL}" y="${H-20}" width="12" height="12" fill="#1a1a18"></rect><text x="${padL+18}" y="${H-10}" font-size="11" fill="#5f5e5a">Текущий</text>`+
+    (prevByQ?`<rect x="${padL+90}" y="${H-20}" width="12" height="12" fill="#c8a23a"></rect><text x="${padL+108}" y="${H-10}" font-size="11" fill="#5f5e5a">Сравнение</text>`:'');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}${bars}${legend}</svg>`;
 }
 
 async function loadAll(){
@@ -199,7 +363,10 @@ async function loadResponses(){
   S.resultLoading=true;
   render();
   try{
-    S.responses = await sbGet('sv_responses_v2', 'select=*&order=created_at.asc');
+    const rows = await sbGet('sv_responses_v2', 'select=*&order=created_at.asc');
+    rows.forEach(r=>{ r.answers = normalizeAnswers(r.answers); });
+    S.responses = rows;
+    pickDefaultResultPeriods();
   }catch(e){
     console.error(e);
   }
@@ -431,7 +598,8 @@ function renderResults(){
   const currentResponses=S.responses.filter(r=>Number(r.period_id)===currentPeriodId);
   const compareResponses=comparePeriodId?S.responses.filter(r=>Number(r.period_id)===comparePeriodId):[];
 
-  const deptIds=[...new Set(S.responses.flatMap(r=>Object.keys(r.answers||{})))].map(Number).sort((a,b)=>a-b);
+  const deptIds=[...new Set(S.responses.flatMap(r=>Object.keys(r.answers||{})))]
+    .sort((a,b)=>deptDisplayName(a).localeCompare(deptDisplayName(b),'ru'));
 
   const stats=deptIds.map(deptId=>{
     const cur=calcDeptStats(currentResponses,deptId);
@@ -448,7 +616,7 @@ function renderResults(){
   const avgCurrent=avg(stats.map(x=>x.cur.avg).filter(v=>v!==null));
   const avgPrev=avg(stats.map(x=>x.prev && x.prev.avg!==null?x.prev.avg:null).filter(v=>v!==null));
   const overallDelta=(avgCurrent!==null && avgPrev!==null)?avgCurrent-avgPrev:null;
-  const selId=Number(S.resultDeptId||0);
+  const selKey=S.resultDeptId||'';
 
   return `
   <div class="card">
@@ -491,9 +659,8 @@ function renderResults(){
         </thead>
         <tbody>
           ${stats.length ? stats.sort((a,b)=>(b.cur.avg||0)-(a.cur.avg||0)).map(s=>{
-            const dept=S.departments.find(d=>Number(d.id)===Number(s.deptId));
-            return `<tr onclick="selectDept(${s.deptId})" style="cursor:pointer">
-              <td>${esc(dept?dept.name:s.deptId)}</td>
+            return `<tr onclick="selectDept(${JSON.stringify(String(s.deptId))})" style="cursor:pointer">
+              <td>${esc(deptDisplayName(s.deptId))}</td>
               <td>${s.cur.count}</td>
               <td>${s.cur.avg!==null?s.cur.avg.toFixed(2):'—'}</td>
               <td><span class="${deltaClass(s.delta)}">${fmtDelta(s.delta)}</span></td>
@@ -504,12 +671,11 @@ function renderResults(){
     </div>
   </div>
 
-  ${selId?renderDeptDetails(selId,currentResponses,compareResponses):''}
+  ${selKey?renderDeptDetails(selKey,currentResponses,compareResponses):''}
   `;
 }
 
 function renderDeptDetails(deptId,currentResponses,compareResponses){
-  const dept=S.departments.find(d=>Number(d.id)===Number(deptId));
   const cur=calcDeptStats(currentResponses,deptId);
   const prev=compareResponses.length?calcDeptStats(compareResponses,deptId):null;
   const trend=getDeptTrend(deptId);
@@ -522,7 +688,7 @@ function renderDeptDetails(deptId,currentResponses,compareResponses){
 
   return `
   <div class="card">
-    <div class="h2">${esc(dept?dept.name:deptId)}</div>
+    <div class="h2">${esc(deptDisplayName(deptId))}</div>
     <div class="muted" style="margin-bottom:12px">Ответов: ${cur.count}</div>
 
     ${trend.points.length?`
@@ -535,6 +701,10 @@ function renderDeptDetails(deptId,currentResponses,compareResponses){
           <span>${esc(trend.lastLabel)}</span>
         </div>
       </div>`:''}
+
+    <div class="sep"></div>
+    <div class="h2">Баллы по критериям${prev?' — текущий и сравнение':''}</div>
+    ${renderCompareBarsSVG(cur.byQ, prev?prev.byQ:null)}
 
     <div class="table-wrap">
       <table class="table">
@@ -1047,77 +1217,122 @@ window.clearLocalMarksOnly=function(){
   render();
 };
 
-window.exportExcel=function(){
+window.exportExcel=async function(){
   try{
-    if(typeof XLSX==='undefined') return alert('Библиотека XLSX не загружена');
+    if(typeof ExcelJS==='undefined') return alert('Библиотека ExcelJS не загружена (нет интернета или CDN заблокирован)');
     if(!S.responses.length) return alert('Нет данных для экспорта');
 
-    const wb=XLSX.utils.book_new();
-    const periods=sortPeriods(S.periods);
-    const deptIds=[...new Set(S.responses.flatMap(r=>Object.keys(r.answers||{})))].map(Number).sort((a,b)=>a-b);
+    const wb=new ExcelJS.Workbook();
+    wb.creator='Опрос КПЭ';
+    const allPeriods=sortPeriods(S.periods);
+    const wd=periodsWithData();
+    const deptIds=[...new Set(S.responses.flatMap(r=>Object.keys(r.answers||{})))]
+      .sort((a,b)=>deptDisplayName(a).localeCompare(deptDisplayName(b),'ru'));
+    const respOf=pid=>S.responses.filter(r=>Number(r.period_id)===Number(pid));
+    const companyAvg=pid=>{
+      const rs=respOf(pid);
+      const vals=deptIds.map(d=>calcDeptStats(rs,d)).filter(s=>s.count&&s.avg!=null).map(s=>s.avg);
+      return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+    };
 
-    const summary=[['Период','Подразделение','Кол-во ответов','Средний балл',...CRITERIA,'Δ к предыдущему']];
+    const HEAD_FILL={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A1A18'}};
+    const styleHeader=row=>row.eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill=HEAD_FILL;c.alignment={vertical:'middle',horizontal:'center',wrapText:true};});
+    const colorDelta=(cell,v)=>{ if(v===''||v==null) return; cell.font={bold:true,color:{argb: v>0?'FF2E7D32': v<0?'FFB23B3B':'FF7A7974'}}; };
 
-    periods.forEach((p,idx)=>{
-      const currentResponses=S.responses.filter(r=>Number(r.period_id)===Number(p.id));
-      const prevP=idx>0?periods[idx-1]:null;
-      const prevResponses=prevP?S.responses.filter(r=>Number(r.period_id)===Number(prevP.id)):[];
-
-      deptIds.forEach(deptId=>{
-        const st=calcDeptStats(currentResponses,deptId);
-        if(!st.count) return;
-
-        const prev=prevP?calcDeptStats(prevResponses,deptId):null;
-        const delta=(prev && st.avg!==null && prev.avg!==null)?+(st.avg-prev.avg).toFixed(2):'';
-        const dept=S.departments.find(d=>Number(d.id)===deptId);
-
-        summary.push([
-          p.name,
-          dept?dept.name:deptId,
-          st.count,
-          st.avg!==null?+st.avg.toFixed(2):'',
-          ...st.byQ.map(x=>x.avg!==null?+x.avg.toFixed(2):''),
-          delta
+    // ---------- Лист 1: Сводка (текущий vs предыдущий) ----------
+    const ws=wb.addWorksheet('Сводка');
+    ws.columns=[
+      {header:'Период',width:22},{header:'Подразделение',width:42},{header:'Ответов',width:9},
+      {header:'Средний (тек.)',width:13},{header:'Средний (пред.)',width:14},{header:'Δ',width:8},
+      ...CRITERIA.map((c,i)=>({header:'К'+(i+1),width:8}))
+    ];
+    styleHeader(ws.getRow(1));
+    wd.forEach((p,idx)=>{
+      const cur=respOf(p.id);
+      const prevP=idx>0?wd[idx-1]:null;
+      const prevR=prevP?respOf(prevP.id):[];
+      deptIds.forEach(d=>{
+        const st=calcDeptStats(cur,d); if(!st.count) return;
+        const pst=prevP?calcDeptStats(prevR,d):null;
+        const delta=(pst&&st.avg!=null&&pst.avg!=null)?+(st.avg-pst.avg).toFixed(2):'';
+        const row=ws.addRow([
+          p.name, deptDisplayName(d), st.count,
+          st.avg!=null?+st.avg.toFixed(2):'',
+          pst&&pst.avg!=null?+pst.avg.toFixed(2):'',
+          delta,
+          ...st.byQ.map(x=>x.avg!=null?+x.avg.toFixed(2):'')
         ]);
+        colorDelta(row.getCell(6),delta===''?null:delta);
       });
     });
+    ws.views=[{state:'frozen',ySplit:1}];
+    ws.eachRow(r=>r.eachCell(c=>{c.border={bottom:{style:'thin',color:{argb:'FFE5E2DB'}}};}));
 
-    const ws1=XLSX.utils.aoa_to_sheet(summary);
-    ws1['!cols']=[{wch:24},{wch:42},{wch:14},{wch:14},...CRITERIA.map(()=>({wch:16})),{wch:18}];
-    XLSX.utils.book_append_sheet(wb,ws1,'Сводка');
-
-    const dynamics=[['Подразделение','Период','Средний балл']];
-    deptIds.forEach(deptId=>{
-      const dept=S.departments.find(d=>Number(d.id)===deptId);
-      periods.forEach(p=>{
-        const st=calcDeptStats(S.responses.filter(r=>Number(r.period_id)===Number(p.id)),deptId);
-        if(st.count) dynamics.push([dept?dept.name:deptId,p.name,st.avg!==null?+st.avg.toFixed(2):'']);
-      });
+    // ---------- Лист 2: Динамика (матрица отдел × квартал) ----------
+    const wd2=wb.addWorksheet('Динамика');
+    wd2.columns=[{header:'Подразделение',width:42}, ...wd.map(p=>({header:p.name,width:16})), {header:'Δ (посл.-пред.)',width:16}];
+    styleHeader(wd2.getRow(1));
+    deptIds.forEach(d=>{
+      const series=wd.map(p=>{ const s=calcDeptStats(respOf(p.id),d); return s.count&&s.avg!=null?+s.avg.toFixed(2):''; });
+      const lastTwo=series.filter(v=>v!=='');
+      const delta=(series.length>=2 && series[series.length-1]!=='' && series[series.length-2]!=='')
+        ? +(series[series.length-1]-series[series.length-2]).toFixed(2):'';
+      const row=wd2.addRow([deptDisplayName(d), ...series, delta]);
+      colorDelta(row.getCell(wd.length+2), delta===''?null:delta);
     });
+    // строка «Итого по компании»
+    const totalRow=wd2.addRow(['ИТОГО по компании', ...wd.map(p=>{const a=companyAvg(p.id);return a!=null?+a.toFixed(2):'';}), '']);
+    totalRow.eachCell(c=>{c.font={bold:true};});
 
-    const ws2=XLSX.utils.aoa_to_sheet(dynamics);
-    ws2['!cols']=[{wch:42},{wch:24},{wch:14}];
-    XLSX.utils.book_append_sheet(wb,ws2,'Динамика');
-
-    const comments=[['Период','Подразделение','Комментарий','Дата']];
+    // ---------- Лист 3: Комментарии ----------
+    const wc=wb.addWorksheet('Комментарии');
+    wc.columns=[{header:'Период',width:22},{header:'Подразделение',width:42},{header:'Комментарий',width:70},{header:'Дата',width:12}];
+    styleHeader(wc.getRow(1));
     S.responses.forEach(r=>{
       Object.keys(r.answers||{}).forEach(k=>{
-        const deptId=Number(k);
-        const a=r.answers[k] && r.answers[k][4];
-        if(a && a.text){
-          const dept=S.departments.find(d=>Number(d.id)===deptId);
-          const p=S.periods.find(x=>Number(x.id)===Number(r.period_id));
-          comments.push([p?p.name:'',dept?dept.name:deptId,a.text,r.created_at?r.created_at.slice(0,10):'']);
+        const a=r.answers[k]&&r.answers[k][4];
+        if(a&&a.text){
+          const p=getPeriodById(r.period_id);
+          const row=wc.addRow([p?p.name:'', deptDisplayName(k), a.text, r.created_at?r.created_at.slice(0,10):'']);
+          row.getCell(3).alignment={wrapText:true,vertical:'top'};
         }
       });
     });
 
-    const ws3=XLSX.utils.aoa_to_sheet(comments);
-    ws3['!cols']=[{wch:24},{wch:42},{wch:70},{wch:12}];
-    XLSX.utils.book_append_sheet(wb,ws3,'Комментарии');
+    // ---------- Лист 4: Графики (картинки) ----------
+    try{
+      const wg=wb.addWorksheet('Графики');
+      // 1) Тренд среднего по компании
+      const trendLabels=wd.map(p=>p.name);
+      const trendVals=wd.map(p=>{const a=companyAvg(p.id);return a!=null?+a.toFixed(2):null;});
+      if(trendLabels.length){
+        const png=makeLineChartPNG('Средний балл по компании', trendLabels, trendVals);
+        const id1=wb.addImage({base64:png.split(',')[1],extension:'png'});
+        wg.addImage(id1,{tl:{col:0,row:1},ext:{width:860,height:380}});
+      }
+      // 2) Текущий vs предыдущий квартал по отделам
+      if(wd.length>=1){
+        const curP=wd[wd.length-1], prevP=wd.length>=2?wd[wd.length-2]:null;
+        const curR=respOf(curP.id), prevR=prevP?respOf(prevP.id):[];
+        const labels=[], curr=[], prev=[];
+        deptIds.forEach(d=>{
+          const cs=calcDeptStats(curR,d); if(!cs.count) return;
+          const ps=prevP?calcDeptStats(prevR,d):null;
+          labels.push(deptDisplayName(d)); curr.push(cs.avg!=null?+cs.avg.toFixed(2):null);
+          prev.push(ps&&ps.avg!=null?+ps.avg.toFixed(2):null);
+        });
+        if(labels.length){
+          const title=prevP?`${curP.name} vs ${prevP.name} по подразделениям`:`${curP.name} по подразделениям`;
+          const png2=makeBarChartPNG(title, labels, curr, prevP?prev:null, curP.name, prevP?prevP.name:'');
+          const id2=wb.addImage({base64:png2.split(',')[1],extension:'png'});
+          wg.addImage(id2,{tl:{col:0,row:22},ext:{width:Math.max(860,labels.length*78+120),height:440}});
+        }
+      }
+    }catch(chErr){ console.warn('Графики не добавлены:', chErr); }
 
-    XLSX.writeFile(wb,`KPE-survey-history-${new Date().toISOString().slice(0,10)}.xlsx`);
-    alert('Excel-файл сформирован');
+    const buf=await wb.xlsx.writeBuffer();
+    downloadBlob(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),
+      `KPE-survey-${new Date().toISOString().slice(0,10)}.xlsx`);
   }catch(e){
     console.error(e);
     alert('Ошибка экспорта: ' + e.message);
