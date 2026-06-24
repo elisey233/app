@@ -652,7 +652,7 @@ function renderAdmin(){
     `;
   }
 
-  const filtered=S.deptFilter
+  const filtered = S.deptFilter
     ? S.departments.filter(d=>d.name.toLowerCase().includes(S.deptFilter.toLowerCase()))
     : S.departments;
 
@@ -663,32 +663,12 @@ function renderAdmin(){
       <div>
         <div class="card">
           <div class="h2">Периоды</div>
-          <div class="grid grid-2">
-            <div class="field">
-              <label>Название</label>
-              <input type="text" value="${esc(S.newPeriodName)}" oninput="S.newPeriodName=this.value">
-            </div>
-            <div class="field">
-              <label>Код</label>
-              <input type="text" value="${esc(S.newPeriodCode)}" oninput="S.newPeriodCode=this.value">
-            </div>
-            <div class="field">
-              <label>Дата начала</label>
-              <input type="date" value="${esc(S.newPeriodFrom)}" oninput="S.newPeriodFrom=this.value">
-            </div>
-            <div class="field">
-              <label>Дата конца</label>
-              <input type="date" value="${esc(S.newPeriodTo)}" oninput="S.newPeriodTo=this.value">
-            </div>
-          </div>
-          <button class="btn-primary" onclick="createPeriod()">Создать период</button>
-          <div class="sep"></div>
           <div class="list">
             ${S.periods.map(p=>`
               <div class="row">
                 <div>
                   <div>${esc(p.name)}</div>
-                  <div class="muted">${esc(p.code||'')}</div>
+                  <div class="muted">${esc(p.code || '')}</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   ${p.is_active
@@ -706,22 +686,29 @@ function renderAdmin(){
           <div class="field">
             <label>Новый отдел</label>
             <div style="display:flex;gap:8px">
-              <input type="text" value="${esc(S.newDeptName)}" oninput="S.newDeptName=this.value" placeholder="Название отдела">
+              <input type="text" value="${esc(S.newDeptName)}"
+                     oninput="S.newDeptName=this.value"
+                     placeholder="Название отдела">
               <button class="btn-primary" onclick="createDepartment()">Добавить</button>
             </div>
           </div>
 
           <div class="field">
             <label>Поиск</label>
-            <input type="text" value="${esc(S.deptFilter)}" oninput="S.deptFilter=this.value;render()" placeholder="Поиск отдела">
+            <input type="text" value="${esc(S.deptFilter)}"
+                   oninput="S.deptFilter=this.value;render()"
+                   placeholder="Поиск отдела">
           </div>
 
           <div class="dept-list">
             ${filtered.map(d=>`
               <div class="dept-item">
                 <div style="flex:1">
-                  <input type="text" value="${esc(d.name)}" onchange="renameDepartment(${d.id}, this.value)">
-                  <div class="muted small" style="margin-top:4px">${d.is_active ? 'Активен' : 'Скрыт'}</div>
+                  <input type="text" value="${esc(d.name)}"
+                         onchange="renameDepartment(${d.id}, this.value)">
+                  <div class="muted small" style="margin-top:4px">
+                    ${d.is_active ? 'Активен' : 'Скрыт'}
+                  </div>
                 </div>
                 <div style="display:flex;gap:6px">
                   ${d.is_active
@@ -738,17 +725,25 @@ function renderAdmin(){
       <div>
         <div class="card">
           <div class="h2">Создать группу голосующих</div>
-          <div class="muted" style="margin-bottom:12px">Группа — это код и набор отделов для оценки внутри периода.</div>
+          <div class="muted" style="margin-bottom:12px">
+            Группа — это код и набор отделов для оценки внутри периода.
+          </div>
 
           <div class="field">
             <label>Название группы</label>
-            <input type="text" value="${esc(S.newGroupName)}" oninput="S.newGroupName=this.value" placeholder="Например: Продажи оценивают поддержку">
+            <input type="text" value="${esc(S.newGroupName)}"
+                   oninput="S.newGroupName=this.value"
+                   placeholder="Например: Продажи оценивают поддержку">
           </div>
 
           <div class="field">
             <label>Период</label>
             <select onchange="S.newGroupPeriodId=this.value">
-              ${S.periods.map(p=>`<option value="${p.id}" ${String(p.id)===String(S.newGroupPeriodId)?'selected':''}>${esc(p.name)}</option>`).join('')}
+              ${S.periods.map(p=>`
+                <option value="${p.id}" ${String(p.id)===String(S.newGroupPeriodId)?'selected':''}>
+                  ${esc(p.name)}
+                </option>
+              `).join('')}
             </select>
           </div>
 
@@ -756,13 +751,16 @@ function renderAdmin(){
             <label>Отделы для оценки</label>
             <div class="dept-list">
               ${S.departments.filter(d=>d.is_active).map(d=>`
-                <div class="dept-item dept-pick ${S.newGroupDeptIds.includes(d.id)?'selected':''}" onclick="toggleDeptPick(${d.id})">
+                <div class="dept-item dept-pick ${S.newGroupDeptIds.includes(d.id)?'selected':''}"
+                     onclick="toggleDeptPick(${d.id})">
                   <div>${esc(d.name)}</div>
                   <div>${S.newGroupDeptIds.includes(d.id)?'✓':''}</div>
                 </div>
               `).join('')}
             </div>
-            <div class="muted" style="margin-top:6px">Выбрано: ${S.newGroupDeptIds.length}</div>
+            <div class="muted" style="margin-top:6px">
+              Выбрано: ${S.newGroupDeptIds.length}
+            </div>
           </div>
 
           <button class="btn-primary" onclick="createGroup()">Создать группу</button>
@@ -777,13 +775,17 @@ function renderAdmin(){
                 const d=S.departments.find(x=>Number(x.id)===Number(id));
                 return d ? d.name : `#${id}`;
               });
-              const cnt=S.responses.filter(r=>r.group_code===g.code && Number(r.period_id)===Number(g.period_id)).length;
+              const cnt=S.responses.filter(
+                r=>r.group_code===g.code && Number(r.period_id)===Number(g.period_id)
+              ).length;
 
               return `
                 <div class="row" style="align-items:flex-start">
                   <div>
                     <div style="font-weight:600">${esc(g.name)}</div>
-                    <div class="muted">${esc(period?period.name:'')} · ${names.length} подразд. · ${cnt} ответов</div>
+                    <div class="muted">
+                      ${esc(period ? period.name : '')} · ${names.length} подразд. · ${cnt} ответов
+                    </div>
                     <details style="margin-top:6px">
                       <summary class="muted">Отделы</summary>
                       <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">
