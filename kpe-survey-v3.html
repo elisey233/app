@@ -757,32 +757,7 @@ function renderAdmin(){
   return `
   ${S.adminMsg?`<div class="alert alert-ok">${esc(S.adminMsg)}</div>`:''}
 
-  <div class="grid grid-2">
-    <div class="card">
-      <div class="h2">Периоды</div>
-      <div class="field"><label>Название</label><input type="text" id="periodName"></div>
-      <div class="field"><label>Код</label><input type="text" id="periodCode" placeholder="Например: 2026Q3"></div>
-      <div class="grid grid-2">
-        <div class="field"><label>Дата начала</label><input type="date" id="periodFrom"></div>
-        <div class="field"><label>Дата конца</label><input type="date" id="periodTo"></div>
-      </div>
-      <button class="btn-primary" onclick="createPeriod()">Создать период</button>
-      <div class="sep"></div>
-      <div class="list">
-        ${sortPeriods(S.periods).map(p=>`
-          <div class="row">
-            <div>
-              <div>${esc(p.name)}</div>
-              <div class="muted">${esc(p.code || '')}</div>
-            </div>
-            <div>
-              ${p.is_active?`<span class="badge badge-ok">Активный</span>`:`<button class="btn-sm" onclick="activatePeriod(${p.id})">Сделать активным</button>`}
-            </div>
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <div class="card">
+  <div class="card">
       <div class="h2">Создать группу голосующих</div>
       <div class="muted" style="margin-bottom:12px">Группа создаётся в активном периоде и сразу доступна для опроса.</div>
       <div class="field">
@@ -808,7 +783,6 @@ function renderAdmin(){
       </div>
       <button class="btn-primary" onclick="createGroup()">Создать группу</button>
     </div>
-  </div>
 
   <div class="grid grid-2">
     <div class="card">
@@ -841,7 +815,16 @@ function renderAdmin(){
     <div class="card danger-zone">
       <div class="h2">Новый квартал</div>
       <div class="muted" style="margin-bottom:12px">
-        Рабочий сценарий: активируете новый период, копируете группы из предыдущего периода, при необходимости очищаете ответы только активного периода. История кварталов остаётся в БД и Excel.
+        Рабочий сценарий: выбираете активный квартал, копируете группы из предыдущего периода, при необходимости очищаете ответы только активного периода. История кварталов остаётся в БД и Excel.
+      </div>
+      <div class="field">
+        <label>Активный квартал (новые ответы пишутся сюда)</label>
+        <div style="display:flex;gap:8px">
+          <select id="activePeriodSel">
+            ${sortPeriods(S.periods).map(p=>`<option value="${p.id}" ${p.is_active?'selected':''}>${esc(p.name)}${p.is_active?' — активный':''}</option>`).join('')}
+          </select>
+          <button class="btn-sm btn-primary" onclick="activatePeriod(Number(document.getElementById('activePeriodSel').value))">Сделать активным</button>
+        </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-sm btn-primary" onclick="copyGroupsFromPreviousPeriod()">Скопировать группы из предыдущего периода</button>
