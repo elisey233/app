@@ -442,8 +442,7 @@ function renderResults(){
       prev,
       delta:(cur.avg!==null && prev && prev.avg!==null)?cur.avg-prev.avg:null
     };
-  }).filter(x=>x.cur.count || (x.prev && x.prev.count));
-
+  }).filter(x => x.cur.count && (!comparePeriodId || (x.prev && x.prev.count)));
   const totalCurrent=currentResponses.length;
   const avgCurrent=avg(stats.map(x=>x.cur.avg).filter(v=>v!==null));
   const avgPrev=avg(stats.map(x=>x.prev && x.prev.avg!==null?x.prev.avg:null).filter(v=>v!==null));
